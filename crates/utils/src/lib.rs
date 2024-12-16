@@ -1,4 +1,4 @@
-pub use gadget_utils_core;
+pub use gadget_utils_core as core;
 
 #[cfg(feature = "eigenlayer")]
 pub use gadget_utils_eigenlayer;

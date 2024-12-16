@@ -8,16 +8,15 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+gadget-runner-core = { workspace = true }
 gadget-runner-eigenlayer = { workspace = true, optional = true }
-gadget-runner-core = { workspace = true, optional = true }
 gadget-runner-symbiotic = { workspace = true, optional = true }
 gadget-runner-tangle = { workspace = true, optional = true }
 
 
 [features]
-default = ["eigenlayer", "core", "symbiotic", "tangle"]
+default = ["eigenlayer", "symbiotic", "tangle"]
 eigenlayer = ["gadget-runner-eigenlayer"]
-core = ["gadget-runner-core"]
 symbiotic = ["gadget-runner-symbiotic"]
 tangle = ["gadget-runner-tangle"]
 

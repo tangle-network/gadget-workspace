@@ -4,3 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+gadget-runner-core = { workspace = true }
+alloy-primitives = { workspace = true }
+async-trait = { workspace = true }
+gadget-config = { workspace = true }
+eigensdk = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+default = ["bls", "ecdsa"]
+bls = []
+ecdsa = []

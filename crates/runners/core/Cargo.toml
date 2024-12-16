@@ -6,10 +6,14 @@ edition = "2021"
 [dependencies]
 # Core
 gadget-config = { workspace = true }
-gadget_utils = { workspace = true }
+gadget-utils = { workspace = true }
 async-trait = { workspace = true }
 parking_lot = { workspace = true }
+futures = { workspace = true }
 
 # Error
 thiserror = { workspace = true }
 tokio = { workspace = true, optional = true }
+
+# Logging
+gadget-logging = { workspace = true }

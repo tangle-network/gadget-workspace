@@ -1,4 +1,4 @@
-use gadget_utils::InitializableEventHandler;
+use gadget_utils::core::handler::InitializableEventHandler;
 
 /// A builder for blueprint jobs
 pub struct JobBuilder<T>

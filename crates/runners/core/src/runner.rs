@@ -1,20 +1,28 @@
+use std::future::Future;
+use std::pin::Pin;
+use tokio::sync::oneshot;
+use gadget_config::GadgetConfiguration;
+use gadget_utils::core::handler::InitializableEventHandler;
+use crate::config::BlueprintConfig;
+use crate::error::RunnerError as Error;
+use crate::jobs::JobBuilder;
 
 #[async_trait::async_trait]
 pub trait BackgroundService: Send + Sync + 'static {
-    async fn start(&self) -> Result<oneshot::Receiver<Result<(), RunnerError>>, RunnerError>;
+    async fn start(&self) -> Result<oneshot::Receiver<Result<(), Error>>, Error>;
 }
 
 pub struct BlueprintRunner {
     pub(crate) config: Box<dyn BlueprintConfig>,
     pub(crate) jobs: Vec<Box<dyn InitializableEventHandler + Send + 'static>>,
-    pub(crate) env: GadgetConfiguration<parking_lot::RawRwLock>,
+    pub(crate) env: GadgetConfiguration,
     pub(crate) background_services: Vec<Box<dyn BackgroundService>>,
 }
 
 impl BlueprintRunner {
     pub fn new<C: BlueprintConfig + 'static>(
         config: C,
-        env: GadgetConfiguration<parking_lot::RawRwLock>,
+        env: GadgetConfiguration,
     ) -> Self {
         Self {
             config: Box::new(config),
@@ -39,7 +47,7 @@ impl BlueprintRunner {
         self
     }
 
-    pub async fn run(&mut self) -> Result<(), RunnerError> {
+    pub async fn run(&mut self) -> Result<(), Error> {
         if self.config.requires_registration(&self.env).await? {
             self.config.register(&self.env).await?;
         }
@@ -56,11 +64,11 @@ impl BlueprintRunner {
         for job in self.jobs.drain(..) {
             all_futures.push(Box::pin(async move {
                 match job.init_event_handler().await {
-                    Some(receiver) => receiver.await.map_err(RunnerError::Recv)?,
+                    Some(receiver) => receiver.await.map_err(Error::Recv)?,
                     None => Ok(()),
                 }
             })
-                as Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>>);
+                as Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>);
         }
 
         // Handle background services
@@ -68,16 +76,16 @@ impl BlueprintRunner {
             all_futures.push(Box::pin(async move {
                 receiver
                     .await
-                    .map_err(|e| crate::Error::Runner(RunnerError::Recv(e)))
+                    .map_err(|e| Error::Recv)
                     .and(Ok(()))
             })
-                as Pin<Box<dyn Future<Output = Result<(), crate::Error>> + Send>>);
+                as Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>);
         }
 
         while !all_futures.is_empty() {
             let (result, _index, remaining) = futures::future::select_all(all_futures).await;
             if let Err(e) = result {
-                crate::error!("Job or background service failed: {:?}", e);
+                gadget_logging::error!("Job or background service failed: {:?}", e);
             }
 
             all_futures = remaining;

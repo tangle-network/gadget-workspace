@@ -1,4 +1,7 @@
-
+use alloy_primitives::Address;
+use gadget_config::GadgetConfiguration;
+use gadget_runner_core::config::BlueprintConfig;
+use crate::error::EigenlayerError as Error;
 
 #[derive(Clone, Copy)]
 pub struct EigenlayerBLSConfig {
@@ -19,8 +22,8 @@ impl EigenlayerBLSConfig {
 impl BlueprintConfig for EigenlayerBLSConfig {
     async fn register(
         &self,
-        env: &GadgetConfiguration<parking_lot::RawRwLock>,
-    ) -> Result<(), RunnerError> {
+        env: &GadgetConfiguration,
+    ) -> Result<(), Error> {
         register_bls_impl(
             env,
             self.earnings_receiver_address,
@@ -31,21 +34,21 @@ impl BlueprintConfig for EigenlayerBLSConfig {
 
     async fn requires_registration(
         &self,
-        env: &GadgetConfiguration<parking_lot::RawRwLock>,
-    ) -> Result<bool, RunnerError> {
+        env: &GadgetConfiguration,
+    ) -> Result<bool, Error> {
         requires_registration_bls_impl(env).await
     }
 }
 
 async fn requires_registration_bls_impl(
-    env: &GadgetConfiguration<parking_lot::RawRwLock>,
-) -> Result<bool, RunnerError> {
+    env: &GadgetConfiguration,
+) -> Result<bool, Error> {
     if env.skip_registration {
         return Ok(false);
     }
 
     let ProtocolSpecificSettings::Eigenlayer(contract_addresses) = &env.protocol_specific else {
-        return Err(RunnerError::InvalidProtocol(
+        return Err(Error::InvalidProtocol(
             "Expected Eigenlayer protocol".into(),
         ));
     };
@@ -68,7 +71,7 @@ async fn requires_registration_bls_impl(
         .await
     {
         Ok(is_registered) => Ok(!is_registered),
-        Err(e) => Err(RunnerError::AvsRegistryError(e)),
+        Err(e) => Err(Error::AvsRegistryError(e)),
     }
 }
 
@@ -76,14 +79,14 @@ async fn register_bls_impl(
     env: &GadgetConfiguration<parking_lot::RawRwLock>,
     earnings_receiver_address: Address,
     delegation_approver_address: Address,
-) -> Result<(), RunnerError> {
+) -> Result<(), Error> {
     if env.test_mode {
         info!("Skipping registration in test mode");
         return Ok(());
     }
 
     let ProtocolSpecificSettings::Eigenlayer(contract_addresses) = &env.protocol_specific else {
-        return Err(RunnerError::InvalidProtocol(
+        return Err(Error::InvalidProtocol(
             "Expected Eigenlayer protocol".into(),
         ));
     };

@@ -1,0 +1,15 @@
+[package]
+name = "gadget-runner-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Core
+gadget-config = { workspace = true }
+gadget_utils = { workspace = true }
+async-trait = { workspace = true }
+parking_lot = { workspace = true }
+
+# Error
+thiserror = { workspace = true }
+tokio = { workspace = true, optional = true }

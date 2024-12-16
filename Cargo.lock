@@ -5150,6 +5150,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "gadget-runner-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "gadget-config",
+ "parking_lot",
+ "thiserror 2.0.7",
+ "tokio",
+]
+
+[[package]]
+name = "gadget-runner-eigenlayer"
+version = "0.1.0"
+
+[[package]]
+name = "gadget-runner-symbiotic"
+version = "0.1.0"
+
+[[package]]
+name = "gadget-runner-tangle"
+version = "0.1.0"
+
+[[package]]
+name = "gadget-runners"
+version = "0.1.0"
+dependencies = [
+ "gadget-runner-core",
+ "gadget-runner-eigenlayer",
+ "gadget-runner-symbiotic",
+ "gadget-runner-tangle",
+]
+
+[[package]]
 name = "gadget-std"
 version = "0.1.0"
 dependencies = [
@@ -5179,9 +5212,19 @@ dependencies = [
 name = "gadget-utils"
 version = "0.1.0"
 dependencies = [
+ "gadget-utils-core",
  "gadget-utils-eigenlayer",
  "gadget-utils-evm",
  "gadget-utils-tangle",
+]
+
+[[package]]
+name = "gadget-utils-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "thiserror 2.0.7",
+ "tokio",
 ]
 
 [[package]]

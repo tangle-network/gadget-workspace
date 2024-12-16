@@ -8,6 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+gadget-utils-core = { workspace = true }
 gadget-utils-eigenlayer = { workspace = true, optional = true }
 gadget-utils-evm = { workspace = true, optional = true }
 gadget-utils-tangle = { workspace = true, optional = true }

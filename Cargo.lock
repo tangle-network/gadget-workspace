@@ -4847,12 +4847,15 @@ dependencies = [
  "alloy-rpc-client",
  "alloy-rpc-types",
  "alloy-rpc-types-eth 0.5.4",
+ "alloy-signer-local",
  "alloy-transport",
  "alloy-transport-http",
  "async-trait",
+ "gadget-anvil-utils",
  "gadget-logging",
  "gadget-rpc-calls",
  "gadget-std",
+ "gadget-utils-evm",
  "hex",
  "serde",
  "serde_json",
@@ -5246,6 +5249,7 @@ dependencies = [
  "thiserror 2.0.7",
  "tokio",
  "tracing",
+ "tracing-subscriber 0.3.19",
 ]
 
 [[package]]
@@ -5273,6 +5277,7 @@ dependencies = [
  "gadget-std",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

@@ -1,8 +1,8 @@
 #![allow(unused_results)]
 
 use crate::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
+use crate::key_types::CryptoKeyCurve;
 use gadget_crypto::hashing::keccak_256;
-use gadget_crypto::k256_crypto::K256Ecdsa;
 use gadget_crypto::KeyType;
 use gadget_std::string::ToString;
 use libp2p::gossipsub::IdentTopic;
@@ -89,7 +89,7 @@ impl NetworkService<'_> {
                 let msg = peer.to_bytes();
                 let hash = keccak_256(&msg);
                 let valid =
-                    <K256Ecdsa as KeyType>::verify(&ecdsa_public_key, &hash, &ecdsa_signature);
+                    <CryptoKeyCurve as KeyType>::verify(&ecdsa_public_key, &hash, &ecdsa_signature);
                 if !valid {
                     gadget_logging::warn!("Invalid signature from peer: {peer}");
                     // TODO: report this peer.
@@ -127,7 +127,8 @@ impl NetworkService<'_> {
                 // Verify the signature
                 let msg = peer.to_bytes();
                 let hash = keccak_256(&msg);
-                let valid = <K256Ecdsa as KeyType>::verify(&ecdsa_public_key, &hash, &signature);
+                let valid =
+                    <CryptoKeyCurve as KeyType>::verify(&ecdsa_public_key, &hash, &signature);
                 if !valid {
                     gadget_logging::warn!("Invalid signature from peer: {peer}");
                     let _ = self.swarm.disconnect_peer_id(peer);
@@ -141,14 +142,14 @@ impl NetworkService<'_> {
                 let my_peer_id = self.swarm.local_peer_id();
                 let msg = my_peer_id.to_bytes();
                 let hash = keccak_256(&msg);
-                match <K256Ecdsa as KeyType>::sign_with_secret_pre_hashed(
+                match <CryptoKeyCurve as KeyType>::sign_with_secret_pre_hashed(
                     &mut self.ecdsa_secret_key.clone(),
                     &hash,
                 ) {
                     Ok(signature) => self.swarm.behaviour_mut().p2p.send_response(
                         channel,
                         MyBehaviourResponse::Handshaked {
-                            ecdsa_public_key: self.ecdsa_secret_key.verifying_key(),
+                            ecdsa_public_key: self.ecdsa_secret_key.public(),
                             ecdsa_signature: signature,
                         },
                     ),

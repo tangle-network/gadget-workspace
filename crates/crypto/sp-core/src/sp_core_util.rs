@@ -29,7 +29,7 @@ macro_rules! impl_sp_core_pair_public {
 
             impl PartialOrd for [<$key_type Pair>] {
                 fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-                    self.0.to_raw_vec().partial_cmp(&other.0.to_raw_vec())
+                    Some(self.cmp(other))
                 }
             }
 
@@ -62,7 +62,7 @@ macro_rules! impl_sp_core_pair_public {
                 {
                     let bytes = <Vec<u8>>::deserialize(deserializer)?;
                     let pair = <$pair_type>::from_seed_slice(&bytes)
-                        .map_err(crate::error::SecretStringErrorWrapper)
+                        .map_err($crate::error::SecretStringErrorWrapper)
                         .map_err(|e| serde::de::Error::custom(e.to_string()))?;
                     Ok([<$key_type Pair>](pair))
                 }
@@ -82,7 +82,7 @@ macro_rules! impl_sp_core_pair_public {
 
             impl PartialOrd for [<$key_type Public>]{
                 fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-                    self.0.to_raw_vec().partial_cmp(&other.0.to_raw_vec())
+                    Some(self.cmp(other))
                 }
             }
 
@@ -132,7 +132,7 @@ macro_rules! impl_sp_core_signature {
 
             impl PartialOrd for [<$key_type Signature>] {
                 fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-                    self.0.0.partial_cmp(&other.0.0)
+                    Some(self.cmp(other))
                 }
             }
 
@@ -183,18 +183,18 @@ macro_rules! impl_sp_core_key_type {
                 type Public = [<$key_type Public>];
                 type Secret = [<$key_type Pair>];
                 type Signature = [<$key_type Signature>];
-                type Error = crate::error::SpCoreError;
+                type Error = $crate::error::SpCoreError;
 
                 fn key_type_id() -> gadget_crypto_core::KeyTypeId {
                     gadget_crypto_core::KeyTypeId::$key_type
                 }
 
-                fn generate_with_seed(seed: Option<&[u8]>) -> crate::error::Result<Self::Secret> {
+                fn generate_with_seed(seed: Option<&[u8]>) -> $crate::error::Result<Self::Secret> {
                     match seed {
                         Some(seed) => {
                             let pair = <$pair_type>::from_seed_slice(seed)
-                                .map_err(crate::error::SecretStringErrorWrapper)
-                                .map_err(Into::<crate::error::SpCoreError>::into)?;
+                                .map_err($crate::error::SecretStringErrorWrapper)
+                                .map_err(Into::<$crate::error::SpCoreError>::into)?;
                             Ok([<$key_type Pair>](pair))
                         }
                         None => {
@@ -205,17 +205,17 @@ macro_rules! impl_sp_core_key_type {
                                 use gadget_std::Rng;
                                 let mut seed = Self::get_test_rng().gen::<[u8; 32]>();
                                 <$pair_type>::from_seed_slice(&mut seed)
-                                    .map_err(crate::error::SecretStringErrorWrapper)
-                                    .map_err(Into::<crate::error::SpCoreError>::into)?
+                                    .map_err($crate::error::SecretStringErrorWrapper)
+                                    .map_err(Into::<$crate::error::SpCoreError>::into)?
                             };
                             Ok([<$key_type Pair>](pair))
                         }
                     }
                 }
 
-                fn generate_with_string(secret: String) -> crate::error::Result<Self::Secret> {
+                fn generate_with_string(secret: String) -> $crate::error::Result<Self::Secret> {
                     let pair = <$pair_type>::from_string(&secret, None)
-                        .map_err(|_| crate::error::SpCoreError::InvalidSeed("Invalid secret string".to_string()))?;
+                        .map_err(|_| $crate::error::SpCoreError::InvalidSeed("Invalid secret string".to_string()))?;
                     Ok([<$key_type Pair>](pair))
                 }
 
@@ -226,19 +226,39 @@ macro_rules! impl_sp_core_key_type {
                 fn sign_with_secret(
                     secret: &mut Self::Secret,
                     msg: &[u8],
-                ) -> crate::error::Result<Self::Signature> {
+                ) -> $crate::error::Result<Self::Signature> {
                     Ok([<$key_type Signature>](secret.0.sign(msg)))
                 }
 
                 fn sign_with_secret_pre_hashed(
                     secret: &mut Self::Secret,
                     msg: &[u8; 32],
-                ) -> crate::error::Result<Self::Signature> {
+                ) -> $crate::error::Result<Self::Signature> {
                     Ok([<$key_type Signature>](secret.0.sign(msg)))
                 }
 
                 fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool {
                     <$pair_type as sp_core::Pair>::verify(&signature.0, msg, &public.0)
+                }
+            }
+
+            impl [<$key_type Pair>] {
+                pub fn public(&self) -> [<$key_type Public>] {
+                    [<$key_type Public>](self.0.public())
+                }
+            }
+
+            impl std::ops::Deref for [<$key_type Pair>] {
+                type Target = $pair_type;
+
+                fn deref(&self) -> &Self::Target {
+                    &self.0
+                }
+            }
+
+            impl std::ops::DerefMut for [<$key_type Pair>] {
+                fn deref_mut(&mut self) -> &mut Self::Target {
+                    &mut self.0
                 }
             }
         }
@@ -248,7 +268,7 @@ macro_rules! impl_sp_core_key_type {
 /// Implements both pair/public and signature traits for a given sp_core crypto type
 macro_rules! impl_sp_core_crypto {
     ($key_type:ident, $module:ident) => {
-        impl_sp_core_pair_public!($key_type, sp_core::$module::Pair, sp_core::$module::Public);
+        impl_sp_core_pair_public!($key_type, sp_core::$module::Pair, $module::Public);
         impl_sp_core_signature!($key_type, sp_core::$module::Pair);
         impl_sp_core_key_type!($key_type, sp_core::$module::Pair);
     };
@@ -257,3 +277,7 @@ macro_rules! impl_sp_core_crypto {
 impl_sp_core_crypto!(SpEcdsa, ecdsa);
 impl_sp_core_crypto!(SpEd25519, ed25519);
 impl_sp_core_crypto!(SpSr25519, sr25519);
+
+impl Copy for SpEcdsaPublic {}
+impl Copy for SpEd25519Public {}
+impl Copy for SpSr25519Public {}

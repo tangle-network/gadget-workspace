@@ -1,10 +1,9 @@
-use crate::channels::UserID;
+use crate::key_types::CryptoPublicKey;
 use crate::Error;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::{Stream, StreamExt};
 use gadget_crypto::hashing::keccak_256;
-use gadget_crypto::k256_crypto::K256VerifyingKey;
 use gadget_std::boxed::Box;
 use gadget_std::cmp::Reverse;
 use gadget_std::collections::{BinaryHeap, HashMap};
@@ -17,6 +16,8 @@ use gadget_std::task::{Context, Poll};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tracing::trace;
+
+pub type UserID = u16;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]
 pub struct IdentifierInfo {
@@ -35,7 +36,7 @@ impl Display for IdentifierInfo {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct ParticipantInfo {
     pub user_id: u16,
-    pub ecdsa_public_key: Option<K256VerifyingKey>,
+    pub ecdsa_public_key: Option<CryptoPublicKey>,
 }
 
 impl Display for ParticipantInfo {
@@ -77,8 +78,8 @@ pub trait Network: Send + Sync + 'static {
         from: UserID,
         to: Option<UserID>,
         payload: &Payload,
-        from_account_id: Option<K256VerifyingKey>,
-        to_network_id: Option<K256VerifyingKey>,
+        from_account_id: Option<CryptoPublicKey>,
+        to_network_id: Option<CryptoPublicKey>,
     ) -> ProtocolMessage {
         let sender_participant_info = ParticipantInfo {
             user_id: from,
@@ -175,6 +176,18 @@ pub struct MultiplexedSender {
 }
 
 impl MultiplexedSender {
+    /// Sends a protocol message through the multiplexed channel.
+    ///
+    /// # Arguments
+    /// * `message` - The protocol message to send
+    ///
+    /// # Returns
+    /// * `Ok(())` - If the message was successfully sent
+    /// * `Err(Error)` - If there was an error sending the message
+    ///
+    /// # Errors
+    /// Returns an error if the receiving end of the channel has been closed,
+    /// indicating that the network connection is no longer available.
     pub fn send(&self, message: ProtocolMessage) -> Result<(), Error> {
         self.inner
             .send((self.stream_id, message))
@@ -214,12 +227,26 @@ impl Drop for MultiplexedReceiver {
 // we need to make a key that is unique for each (send->dest) pair and stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct CompoundStreamKey {
-    stream_id: StreamKey,
-    send_user_id: UserID,
-    recv_user_id: Option<UserID>,
+    stream: StreamKey,
+    send_user: UserID,
+    recv_user: Option<UserID>,
 }
 
 impl NetworkMultiplexer {
+    /// Creates a new `NetworkMultiplexer` instance.
+    ///
+    /// # Arguments
+    /// * `network` - The underlying network implementation that implements the Network trait
+    ///
+    /// # Type Parameters
+    /// * `N` - The network type that implements the Network trait
+    ///
+    /// # Returns
+    /// * `Self` - A new `NetworkMultiplexer` instance
+    ///
+    /// # Panics
+    /// This function will panic if the internal receiver has already been taken, which should not happen.
+    #[allow(clippy::too_many_lines)]
     pub fn new<N: Network>(network: N) -> Self {
         let (tx_to_networking_layer, mut rx_from_substreams) =
             tokio::sync::mpsc::unbounded_channel();
@@ -228,7 +255,7 @@ impl NetworkMultiplexer {
             unclaimed_receiving_streams: Arc::new(DashMap::new()),
             tx_to_networking_layer: MultiplexedSender {
                 inner: tx_to_networking_layer,
-                stream_id: Default::default(),
+                stream_id: StreamKey::default(),
             },
             sequence_numbers: Arc::new(DashMap::new()),
         };
@@ -244,9 +271,9 @@ impl NetworkMultiplexer {
             let task1 = async move {
                 while let Some((stream_id, msg)) = rx_from_substreams.recv().await {
                     let compound_key = CompoundStreamKey {
-                        stream_id,
-                        send_user_id: msg.sender.user_id,
-                        recv_user_id: msg.recipient.as_ref().map(|p| p.user_id),
+                        stream: stream_id,
+                        send_user: msg.sender.user_id,
+                        recv_user: msg.recipient.as_ref().map(|p| p.user_id),
                     };
 
                     let mut seq = sequence_numbers.entry(compound_key).or_insert(0);
@@ -286,8 +313,8 @@ impl NetworkMultiplexer {
                 let mut pending_messages: HashMap<
                     CompoundStreamKey,
                     BinaryHeap<Reverse<PendingMessage>>,
-                > = Default::default();
-                let mut expected_seqs: HashMap<CompoundStreamKey, u64> = Default::default();
+                > = HashMap::default();
+                let mut expected_seqs: HashMap<CompoundStreamKey, u64> = HashMap::default();
 
                 while let Some(mut msg) = network_clone.next_message().await {
                     if let Ok(multiplexed_message) =
@@ -295,9 +322,9 @@ impl NetworkMultiplexer {
                     {
                         let stream_id = multiplexed_message.stream_id;
                         let compound_key = CompoundStreamKey {
-                            stream_id,
-                            send_user_id: msg.sender.user_id,
-                            recv_user_id: msg.recipient.as_ref().map(|p| p.user_id),
+                            stream: stream_id,
+                            send_user: msg.sender.user_id,
+                            recv_user: msg.recipient.as_ref().map(|p| p.user_id),
                         };
                         let seq = multiplexed_message.payload.seq;
                         msg.payload = multiplexed_message.payload.payload;
@@ -307,12 +334,7 @@ impl NetworkMultiplexer {
                         let expected_seq = expected_seqs.entry(compound_key).or_default();
 
                         let send_user = msg.sender.user_id;
-                        let recv_user = msg
-                            .recipient
-                            .as_ref()
-                            .map(|p| p.user_id as i32)
-                            .unwrap_or(-1);
-
+                        let recv_user = msg.recipient.as_ref().map_or(-1, |p| i32::from(p.user_id));
                         let compound_key_hex =
                             hex::encode(bincode::serialize(&compound_key).unwrap());
                         trace!(
@@ -383,10 +405,10 @@ impl NetworkMultiplexer {
             };
 
             tokio::select! {
-                _ = task1 => {
+                () = task1 => {
                     gadget_logging::error!("Task 1 exited");
                 },
-                _ = task2 => {
+                () = task2 => {
                     gadget_logging::error!("Task 2 exited");
                 }
             }
@@ -420,6 +442,11 @@ impl NetworkMultiplexer {
 
     /// Creates a subnetwork, and also forwards all messages to the given channel. The network cannot be used to
     /// receive messages since the messages will be forwarded to the provided channel.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the internal receiver has already been taken, which should not happen
+    /// under normal circumstances.
     pub fn multiplex_with_forwarding(
         &self,
         id: impl Into<StreamKey>,
@@ -486,6 +513,17 @@ pub struct SubNetwork {
 }
 
 impl SubNetwork {
+    /// Sends a protocol message through the subnetwork.
+    ///
+    /// # Arguments
+    /// * `message` - The protocol message to send
+    ///
+    /// # Returns
+    /// * `Ok(())` - If the message was successfully sent
+    /// * `Err(Error)` - If there was an error sending the message
+    ///
+    /// # Errors
+    /// * Returns an error if the underlying network connection is closed or unavailable
     pub fn send(&self, message: ProtocolMessage) -> Result<(), Error> {
         self.tx.send(message)
     }
@@ -506,6 +544,32 @@ impl Network for SubNetwork {
     }
 }
 
+/// Serializes an object to a JSON byte vector.
+///
+/// # Arguments
+/// * `object` - The object to serialize that implements the `Serialize` trait
+///
+/// # Returns
+/// * `Result<Vec<u8>, serde_json::Error>` - The serialized bytes on success
+///
+/// # Errors
+/// * Returns a `serde_json::Error` if serialization fails due to invalid data structures
+///     or other JSON serialization errors
+pub fn serialize(object: &impl Serialize) -> Result<Vec<u8>, serde_json::Error> {
+    serde_json::to_vec(object)
+}
+
+/// Deserializes a JSON byte vector to an object.
+///
+/// # Arguments
+/// * `data` - The JSON byte vector to deserialize
+///
+/// # Returns
+/// * `Result<T, serde_json::Error>` - The deserialized object on success
+///
+/// # Errors
+/// * Returns a `serde_json::Error` if deserialization fails due to invalid JSON data
+///     or other deserialization errors
 pub fn deserialize<'a, T>(data: &'a [u8]) -> Result<T, serde_json::Error>
 where
     T: Deserialize<'a>,
@@ -513,18 +577,16 @@ where
     serde_json::from_slice::<T>(data)
 }
 
-pub fn serialize(object: &impl Serialize) -> Result<Vec<u8>, serde_json::Error> {
-    serde_json::to_vec(object)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gossip::GossipHandle;
     use futures::{stream, StreamExt};
+    use gadget_crypto::hashing::sha2_256;
+    use gadget_crypto::KeyType;
+    use gadget_logging::tracing_subscriber;
     use gadget_std::collections::BTreeMap;
-    use gossip::GossipHandle;
     use serde::{Deserialize, Serialize};
-    use sp_core::Pair;
 
     const TOPIC: &str = "/gadget/test/1.0.0";
 
@@ -586,14 +648,14 @@ mod tests {
             gadget_logging::debug!(%node_count, %max_retries, %retry, "Checking if all nodes are connected to each other");
             let connected = nodes
                 .iter()
-                .map(|node| node.connected_peers())
+                .map(super::super::gossip::GossipHandle::connected_peers)
                 .collect::<Vec<_>>();
 
             let all_connected = connected
                 .iter()
                 .enumerate()
                 .inspect(|(node, peers)| {
-                    gadget_logging::debug!("Node {node} has {peers} connected peers")
+                    gadget_logging::debug!("Node {node} has {peers} connected peers");
                 })
                 .all(|(_, &peers)| peers == node_count - 1);
             if all_connected {
@@ -602,13 +664,15 @@ mod tests {
             }
             tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
             retry += 1;
-            if retry > max_retries {
-                panic!("Failed to connect all nodes to each other");
-            }
+            assert!(
+                retry <= max_retries,
+                "Failed to connect all nodes to each other"
+            );
         }
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(clippy::cast_possible_truncation)]
     async fn test_p2p() {
         setup_log();
         let nodes = stream::iter(0..NODE_COUNT)
@@ -629,11 +693,12 @@ mod tests {
             .expect("Failed to run protocol");
         // Assert that all are okay.
         assert!(
-            results.iter().all(|r| r.is_ok()),
+            results.iter().all(std::result::Result::is_ok),
             "Some nodes failed to run protocol"
         );
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn run_protocol<N: Network>(node: N, i: u16) -> Result<(), crate::Error> {
         let task_hash = [0u8; 32];
         // Safety note: We should be passed a NetworkMultiplexer, and all uses of the N: Network
@@ -816,25 +881,28 @@ mod tests {
         Ok(())
     }
 
-    fn node_with_id() -> (gossip::GossipHandle, ecdsa::Pair) {
+    fn node_with_id() -> (crate::gossip::GossipHandle, crate::key_types::CryptoKeyPair) {
         let identity = libp2p::identity::Keypair::generate_ed25519();
-        let ecdsa_key = sp_core::ecdsa::Pair::generate().0;
+        let ecdsa_key = crate::key_types::CryptoKeyCurve::generate_with_seed(None).unwrap();
         let bind_port = 0;
-        let handle = setup::start_p2p_network(setup::NetworkConfig::new_service_network(
-            identity,
-            ecdsa_key.clone(),
-            Default::default(),
-            bind_port,
-            TOPIC,
-        ))
-        .unwrap();
+        let handle =
+            crate::setup::start_p2p_network(crate::setup::NetworkConfig::new_service_network(
+                identity,
+                ecdsa_key.clone(),
+                Vec::default(),
+                bind_port,
+                TOPIC,
+            ))
+            .unwrap();
 
         (handle, ecdsa_key)
     }
 
-    fn node() -> gossip::GossipHandle {
+    fn node() -> crate::gossip::GossipHandle {
         node_with_id().0
     }
+
+    const MESSAGE_COUNT: u64 = 100;
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_stress_test_multiplexer() {
@@ -843,11 +911,11 @@ mod tests {
 
         let (network0, id0) = node_with_id();
         let (network1, id1) = node_with_id();
-        let mut networks = vec![network0, network1];
+        let mut gossip_networks = vec![network0, network1];
 
-        wait_for_nodes_connected(&networks).await;
+        wait_for_nodes_connected(&gossip_networks).await;
 
-        let (network0, network1) = (networks.remove(0), networks.remove(0));
+        let (network0, network1) = (gossip_networks.remove(0), gossip_networks.remove(0));
 
         let public0 = id0.public();
         let public1 = id1.public();
@@ -862,13 +930,6 @@ mod tests {
 
         let sub0 = multiplexer0.multiplex(stream_key);
         let sub1 = multiplexer1.multiplex(stream_key);
-
-        const MESSAGE_COUNT: u64 = 100;
-
-        #[derive(Serialize, Deserialize)]
-        struct StressTestPayload {
-            value: u64,
-        }
 
         let handle0 = tokio::spawn(async move {
             let sub0 = &sub0;
@@ -946,81 +1007,92 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(clippy::cast_possible_truncation)]
     async fn test_nested_multiplexer() {
         setup_log();
         gadget_logging::info!("Starting test_nested_multiplexer");
-        let network0 = node();
-        let network1 = node();
-
-        let mut networks = vec![network0, network1];
-
-        wait_for_nodes_connected(&networks).await;
-
-        let (network0, network1) = (networks.remove(0), networks.remove(0));
-
-        async fn nested_multiplex<N: Network>(
-            cur_depth: usize,
-            max_depth: usize,
-            network0: N,
-            network1: N,
-        ) {
-            gadget_logging::info!("At nested depth = {cur_depth}/{max_depth}");
-
-            if cur_depth == max_depth {
-                return;
-            }
-
-            let multiplexer0 = NetworkMultiplexer::new(network0);
-            let multiplexer1 = NetworkMultiplexer::new(network1);
-
-            let stream_key = StreamKey {
-                task_hash: sha2_256(&[(cur_depth % 255) as u8]),
-                round_id: 0,
-            };
-
-            let subnetwork0 = multiplexer0.multiplex(stream_key);
-            let subnetwork1 = multiplexer1.multiplex(stream_key);
-
-            // Send a message in the subnetwork0 to subnetwork1 and vice versa, assert values of message
-            let payload = vec![1, 2, 3];
-            let msg = GossipHandle::build_protocol_message(
-                IdentifierInfo::default(),
-                0,
-                Some(1),
-                &payload,
-                None,
-                None,
-            );
-
-            subnetwork0.send(msg.clone()).unwrap();
-
-            let received_msg = subnetwork1.recv().await.unwrap();
-            assert_eq!(received_msg.payload, msg.payload);
-
-            let msg = GossipHandle::build_protocol_message(
-                IdentifierInfo::default(),
-                1,
-                Some(0),
-                &payload,
-                None,
-                None,
-            );
-
-            subnetwork1.send(msg.clone()).unwrap();
-
-            let received_msg = subnetwork0.recv().await.unwrap();
-            assert_eq!(received_msg.payload, msg.payload);
-            tracing::info!("Done nested depth = {cur_depth}/{max_depth}");
-
-            Box::pin(nested_multiplex(
-                cur_depth + 1,
-                max_depth,
-                subnetwork0,
-                subnetwork1,
-            ))
-            .await
-        }
+        let (network0, network1) = get_networks().await;
 
         nested_multiplex(0, 10, network0, network1).await;
     }
+
+    async fn get_networks() -> (GossipHandle, GossipHandle) {
+        let network0 = node();
+        let network1 = node();
+
+        let mut gossip_networks = vec![network0, network1];
+
+        wait_for_nodes_connected(&gossip_networks).await;
+
+        (gossip_networks.remove(0), gossip_networks.remove(0))
+    }
+
+    async fn nested_multiplex<N: Network>(
+        cur_depth: usize,
+        max_depth: usize,
+        network0: N,
+        network1: N,
+    ) {
+        gadget_logging::info!("At nested depth = {cur_depth}/{max_depth}");
+
+        if cur_depth == max_depth {
+            return;
+        }
+
+        let multiplexer0 = NetworkMultiplexer::new(network0);
+        let multiplexer1 = NetworkMultiplexer::new(network1);
+
+        let stream_key = StreamKey {
+            #[allow(clippy::cast_possible_truncation)]
+            task_hash: sha2_256(&[(cur_depth % 255) as u8]),
+            round_id: 0,
+        };
+
+        let subnetwork0 = multiplexer0.multiplex(stream_key);
+        let subnetwork1 = multiplexer1.multiplex(stream_key);
+
+        // Send a message in the subnetwork0 to subnetwork1 and vice versa, assert values of message
+        let payload = vec![1, 2, 3];
+        let msg = GossipHandle::build_protocol_message(
+            IdentifierInfo::default(),
+            0,
+            Some(1),
+            &payload,
+            None,
+            None,
+        );
+
+        subnetwork0.send(msg.clone()).unwrap();
+
+        let received_msg = subnetwork1.recv().await.unwrap();
+        assert_eq!(received_msg.payload, msg.payload);
+
+        let msg = GossipHandle::build_protocol_message(
+            IdentifierInfo::default(),
+            1,
+            Some(0),
+            &payload,
+            None,
+            None,
+        );
+
+        subnetwork1.send(msg.clone()).unwrap();
+
+        let received_msg = subnetwork0.recv().await.unwrap();
+        assert_eq!(received_msg.payload, msg.payload);
+        tracing::info!("Done nested depth = {cur_depth}/{max_depth}");
+
+        Box::pin(nested_multiplex(
+            cur_depth + 1,
+            max_depth,
+            subnetwork0,
+            subnetwork1,
+        ))
+        .await;
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct StressTestPayload {
+    value: u64,
 }

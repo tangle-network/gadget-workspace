@@ -1,3 +1,4 @@
+use crate::key_types::CryptoPublicKey;
 use crate::networking::{
     IdentifierInfo, NetworkMultiplexer, ProtocolMessage, StreamKey, SubNetwork,
 };
@@ -5,7 +6,6 @@ use core::pin::Pin;
 use core::sync::atomic::AtomicU64;
 use core::task::{ready, Context, Poll};
 use futures::prelude::*;
-use gadget_crypto::k256_crypto::K256VerifyingKey;
 use gadget_std::collections::{BTreeMap, HashMap, VecDeque};
 use gadget_std::string::ToString;
 use gadget_std::sync::Arc;
@@ -25,12 +25,13 @@ where
     M: Clone + Send + Unpin + 'static,
     M: serde::Serialize + serde::de::DeserializeOwned,
 {
-    /// Create a new NetworkDeliveryWrapper over a network implementation with the given party index.
+    /// Create a new `NetworkDeliveryWrapper` over a network implementation with the given party index.
+    #[must_use]
     pub fn new(
         mux: Arc<NetworkMultiplexer>,
         i: PartyIndex,
         task_hash: [u8; 32],
-        parties: BTreeMap<PartyIndex, K256VerifyingKey>,
+        parties: BTreeMap<PartyIndex, CryptoPublicKey>,
     ) -> Self {
         let (tx_forward, rx) = tokio::sync::mpsc::unbounded_channel();
         // By default, we create 10 substreams for each party.
@@ -60,7 +61,7 @@ where
     }
 }
 
-/// A NetworkWrapper wraps a network implementation
+/// A `NetworkWrapper` wraps a network implementation
 /// and implements [`Stream`] and [`Sink`] for it.
 pub struct NetworkWrapper<M> {
     /// The current party index.
@@ -73,8 +74,8 @@ pub struct NetworkWrapper<M> {
     #[allow(dead_code)]
     incoming_queue: VecDeque<Incoming<M>>,
     /// Participants in the network with their corresponding ECDSA public keys.
-    /// Note: This is a BTreeMap to ensure that the participants are sorted by their party index.
-    participants: BTreeMap<PartyIndex, K256VerifyingKey>,
+    /// Note: This is a `BTreeMap` to ensure that the participants are sorted by their party index.
+    participants: BTreeMap<PartyIndex, CryptoPublicKey>,
     next_msg_id: Arc<NextMessageId>,
     tx_forward: tokio::sync::mpsc::UnboundedSender<ProtocolMessage>,
     rx: tokio::sync::mpsc::UnboundedReceiver<ProtocolMessage>,
@@ -177,7 +178,7 @@ where
         };
         let (to, to_network_id) = match out.recipient {
             MessageDestination::AllParties => (None, None),
-            MessageDestination::OneParty(p) => (Some(p), this.participants.get(&p).cloned()),
+            MessageDestination::OneParty(p) => (Some(p), this.participants.get(&p).copied()),
         };
 
         if matches!(out.recipient, MessageDestination::OneParty(_)) && to_network_id.is_none() {
@@ -189,7 +190,7 @@ where
             identifier_info,
             sender: ParticipantInfo {
                 user_id: this.me,
-                ecdsa_public_key: this.participants.get(&this.me).cloned(),
+                ecdsa_public_key: this.participants.get(&this.me).copied(),
             },
             recipient: to.map(|user_id| ParticipantInfo {
                 user_id,

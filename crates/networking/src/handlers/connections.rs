@@ -1,7 +1,8 @@
 #![allow(unused_results, clippy::used_underscore_binding)]
 
 use crate::gossip::{MyBehaviourRequest, NetworkService};
-use gadget_crypto::{hashing::keccak_256, k256_crypto::K256Ecdsa, KeyType};
+use crate::key_types::CryptoKeyCurve;
+use gadget_crypto::{hashing::keccak_256, KeyType};
 use itertools::Itertools;
 use libp2p::PeerId;
 
@@ -17,13 +18,13 @@ impl NetworkService<'_> {
             let my_peer_id = self.swarm.local_peer_id();
             let msg = my_peer_id.to_bytes();
             let hash = keccak_256(&msg);
-            match <K256Ecdsa as KeyType>::sign_with_secret_pre_hashed(
+            match <CryptoKeyCurve as KeyType>::sign_with_secret_pre_hashed(
                 &mut self.ecdsa_secret_key.clone(),
                 &hash,
             ) {
                 Ok(signature) => {
                     let handshake = MyBehaviourRequest::Handshake {
-                        ecdsa_public_key: self.ecdsa_secret_key.verifying_key(),
+                        ecdsa_public_key: self.ecdsa_secret_key.public(),
                         signature,
                     };
                     self.swarm

@@ -4,10 +4,10 @@
     clippy::module_name_repetitions,
     clippy::exhaustive_enums
 )]
+use crate::key_types::{CryptoKeyPair, CryptoPublicKey, CryptoSignature};
 use crate::Error;
 use async_trait::async_trait;
 use gadget_crypto::hashing::keccak_256;
-use gadget_crypto::k256_crypto::{K256Signature, K256SigningKey, K256VerifyingKey};
 use gadget_std::collections::BTreeMap;
 use gadget_std::string::ToString;
 use gadget_std::sync::atomic::AtomicU32;
@@ -45,8 +45,8 @@ pub type InboundMapping = (IdentTopic, UnboundedSender<Vec<u8>>, Arc<AtomicU32>)
 
 pub struct NetworkServiceWithoutSwarm<'a> {
     pub inbound_mapping: &'a [InboundMapping],
-    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<K256VerifyingKey, PeerId>>>,
-    pub ecdsa_secret_key: &'a K256SigningKey,
+    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<CryptoPublicKey, PeerId>>>,
+    pub ecdsa_secret_key: &'a CryptoKeyPair,
     pub span: tracing::Span,
     pub my_id: PeerId,
 }
@@ -70,8 +70,8 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
 pub struct NetworkService<'a> {
     pub swarm: &'a mut libp2p::Swarm<MyBehaviour>,
     pub inbound_mapping: &'a [InboundMapping],
-    pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<BTreeMap<K256VerifyingKey, PeerId>>>,
-    pub ecdsa_secret_key: &'a K256SigningKey,
+    pub ecdsa_peer_id_to_libp2p_id: &'a Arc<RwLock<BTreeMap<CryptoPublicKey, PeerId>>>,
+    pub ecdsa_secret_key: &'a CryptoKeyPair,
     pub span: &'a tracing::Span,
     pub my_id: PeerId,
 }
@@ -261,7 +261,7 @@ pub struct GossipHandle {
     pub tx_to_outbound: UnboundedSender<IntraNodePayload>,
     pub rx_from_inbound: Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
     pub connected_peers: Arc<AtomicU32>,
-    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<K256VerifyingKey, PeerId>>>,
+    pub ecdsa_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<CryptoPublicKey, PeerId>>>,
     pub recent_messages: parking_lot::Mutex<LruCache<[u8; 32], ()>>,
     pub my_id: PeerId,
 }
@@ -279,7 +279,7 @@ impl GossipHandle {
     }
 
     /// Returns an ordered vector of public keys of the peers that are connected to the gossipsub topic.
-    pub async fn peers(&self) -> Vec<K256VerifyingKey> {
+    pub async fn peers(&self) -> Vec<CryptoPublicKey> {
         self.ecdsa_peer_id_to_libp2p_id
             .read()
             .await
@@ -321,8 +321,8 @@ pub struct GossipMessage {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourRequest {
     Handshake {
-        ecdsa_public_key: K256VerifyingKey,
-        signature: K256Signature,
+        ecdsa_public_key: CryptoPublicKey,
+        signature: CryptoSignature,
     },
     Message {
         topic: String,
@@ -361,8 +361,8 @@ impl<'de> serde::Deserialize<'de> for EcdsaSignatureWrapper {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourResponse {
     Handshaked {
-        ecdsa_public_key: K256VerifyingKey,
-        ecdsa_signature: K256Signature,
+        ecdsa_public_key: CryptoPublicKey,
+        ecdsa_signature: CryptoSignature,
     },
     MessageHandled,
 }
@@ -426,7 +426,7 @@ impl Network for GossipHandle {
             MessageType::Broadcast
         };
 
-        let raw_payload = serde_json::to_vec(&message).map_err(|e| Error::SerdeJson(e))?;
+        let raw_payload = serde_json::to_vec(&message).map_err(Error::SerdeJson)?;
         let payload_inner = match message_type {
             MessageType::Broadcast => GossipOrRequestResponse::Gossip(GossipMessage {
                 topic: self.topic.to_string(),

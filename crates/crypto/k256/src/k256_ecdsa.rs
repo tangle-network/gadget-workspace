@@ -16,7 +16,7 @@ pub struct K256VerifyingKey(pub k256::ecdsa::VerifyingKey);
 
 impl PartialOrd for K256VerifyingKey {
     fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-        self.0.to_sec1_bytes().partial_cmp(&other.0.to_sec1_bytes())
+        Some(self.cmp(other))
     }
 }
 
@@ -55,7 +55,7 @@ macro_rules! impl_serde_bytes {
 
         impl PartialOrd for $wrapper {
             fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-                self.0.to_bytes().partial_cmp(&other.0.to_bytes())
+                Some(self.cmp(other))
             }
         }
 
@@ -124,7 +124,7 @@ impl KeyType for K256Ecdsa {
     }
 
     fn public_from_secret(secret: &Self::Secret) -> Self::Public {
-        K256VerifyingKey(secret.0.verifying_key().clone())
+        K256VerifyingKey(*secret.0.verifying_key())
     }
 
     fn sign_with_secret(secret: &mut Self::Secret, msg: &[u8]) -> Result<Self::Signature> {
@@ -151,6 +151,11 @@ impl KeyType for K256Ecdsa {
 
 impl K256SigningKey {
     pub fn verifying_key(&self) -> K256VerifyingKey {
-        K256VerifyingKey(self.0.verifying_key().clone())
+        K256VerifyingKey(*self.0.verifying_key())
+    }
+
+    /// Alias for `verifying_key` for consistency
+    pub fn public(&self) -> K256VerifyingKey {
+        self.verifying_key()
     }
 }

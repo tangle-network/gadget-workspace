@@ -1,7 +1,24 @@
-use alloy_primitives::Address;
+use std::str::FromStr;
+
+use alloy_network::{EthereumWallet, TransactionBuilder};
+use alloy_primitives::{hex, Address, FixedBytes, U256};
+use alloy_provider::Provider;
+use alloy_rpc_types::BlockNumberOrTag;
+use alloy_signer::Signer;
+use alloy_signer_local::PrivateKeySigner;
+
+// Eigenlayer SDK
+use eigensdk::client_elcontracts::{reader::ELChainReader, writer::ELChainWriter};
+use eigensdk::logging::get_test_logger;
+use eigensdk::types::operator::Operator;
+use eigensdk::utils::ecdsastakeregistry::{ECDSAStakeRegistry, ISignatureUtils};
+use eigensdk::utils::get_provider;
+
+use crate::error::EigenlayerError;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_runner_core::config::BlueprintConfig;
-use crate::error::EigenlayerError as Error;
+use gadget_runner_core::error::RunnerError as Error;
+use gadget_utils::gadget_utils_evm::get_provider_http;
 
 #[derive(Clone, Copy)]
 pub struct EigenlayerECDSAConfig {
@@ -20,33 +37,23 @@ impl EigenlayerECDSAConfig {
 
 #[async_trait::async_trait]
 impl BlueprintConfig for EigenlayerECDSAConfig {
-    async fn register(
-        &self,
-        env: &GadgetConfiguration,
-    ) -> Result<(), Error> {
+    async fn register(&self, env: &GadgetConfiguration) -> Result<(), Error> {
         register_ecdsa_impl(
             env,
             self.earnings_receiver_address,
             self.delegation_approver_address,
         )
-            .await
+        .await
     }
 
-    async fn requires_registration(
-        &self,
-        env: &GadgetConfiguration,
-    ) -> Result<bool, Error> {
+    async fn requires_registration(&self, env: &GadgetConfiguration) -> Result<bool, Error> {
         requires_registration_ecdsa_impl(env).await
     }
 }
 
-async fn requires_registration_ecdsa_impl(
-    env: &GadgetConfiguration,
-) -> Result<bool, Error> {
+async fn requires_registration_ecdsa_impl(env: &GadgetConfiguration) -> Result<bool, Error> {
     let contract_addresses = match env.protocol_settings {
-        ProtocolSettings::Eigenlayer(addresses) => {
-            addresses
-        }
+        ProtocolSettings::Eigenlayer(addresses) => addresses,
         _ => {
             return Err(gadget_runner_core::error::RunnerError::InvalidProtocol(
                 "Expected Eigenlayer protocol".into(),
@@ -64,7 +71,8 @@ async fn requires_registration_ecdsa_impl(
         operator_state_retriever_address,
         env.http_rpc_endpoint.clone(),
     )
-        .await?;
+    .await
+    .map_err(|e| EigenlayerError::AvsRegistry(e).into())?;
 
     // Check if the operator has already registered for the service
     match avs_registry_reader
@@ -72,26 +80,23 @@ async fn requires_registration_ecdsa_impl(
         .await
     {
         Ok(is_registered) => Ok(!is_registered),
-        Err(e) => Err(Error::AvsRegistryError(e).into()),
+        Err(e) => Err(EigenlayerError::AvsRegistry(e).into()),
     }
 }
 
 async fn register_ecdsa_impl(
-    env: &GadgetConfiguration<parking_lot::RawRwLock>,
+    env: &GadgetConfiguration,
     earnings_receiver_address: Address,
     delegation_approver_address: Address,
 ) -> Result<(), Error> {
-    if env.test_mode {
-        info!("Skipping registration in test mode");
-        return Ok(());
-    }
-
-    let ProtocolSpecificSettings::Eigenlayer(contract_addresses) = &env.protocol_specific else {
-        return Err(Error::TransactionError(
-            "Missing EigenLayer contract addresses".into(),
-        ));
+    let contract_addresses = match env.protocol_settings {
+        ProtocolSettings::Eigenlayer(addresses) => addresses,
+        _ => {
+            return Err(gadget_runner_core::error::RunnerError::InvalidProtocol(
+                "Expected Eigenlayer protocol".into(),
+            ));
+        }
     };
-
     let delegation_manager_address = contract_addresses.delegation_manager_address;
     let strategy_manager_address = contract_addresses.strategy_manager_address;
     let avs_directory_address = contract_addresses.avs_directory_address;
@@ -101,28 +106,31 @@ async fn register_ecdsa_impl(
 
     let operator = env
         .keystore()
-        .map_err(|e| Error::EigenlayerError(e.to_string()))?
+        .map_err(|e| EigenlayerError::Keystore(e.to_string()))?
         .ecdsa_key()
-        .map_err(|e| Error::EigenlayerError(e.to_string()))?;
+        .map_err(|e| EigenlayerError::Keystore(e.to_string()))?;
+
     let operator_private_key = hex::encode(operator.signer().seed());
     let wallet = PrivateKeySigner::from_str(&operator_private_key)
-        .map_err(|_| Error::EigenlayerError("Invalid private key".into()))?;
+        .map_err(|_| EigenlayerError::Keystore("Invalid private key".into()))?;
+
     let operator_address = operator
-        .alloy_key()
-        .map_err(|e| Error::EigenlayerError(e.to_string()))?
-        .address();
+        .address()
+        .map_err(|_| EigenlayerError::Keystore("Invalid private key".into()))?;
+
     let provider = get_provider_http(&env.http_rpc_endpoint);
 
     let delegation_manager = eigensdk::utils::delegationmanager::DelegationManager::new(
         delegation_manager_address,
         provider.clone(),
     );
+
     let slasher_address = delegation_manager
         .slasher()
         .call()
         .await
         .map(|a| a._0)
-        .map_err(|e| Error::EigenlayerError(e.to_string()))?;
+        .map_err(|e| EigenlayerError::Contract(e).into())?;
 
     let logger = get_test_logger();
     let el_chain_reader = ELChainReader::new(
@@ -154,8 +162,9 @@ async fn register_ecdsa_impl(
     let tx_hash = el_writer
         .register_as_operator(operator_details)
         .await
-        .map_err(|e| Error::EigenlayerError(e.to_string()))?;
-    info!("Registered as operator for Eigenlayer {:?}", tx_hash);
+        .map_err(|e| EigenlayerError::ElContracts(e).into())?;
+
+    gadget_logging::info!("Registered as operator for Eigenlayer {:?}", tx_hash);
 
     let digest_hash_salt: FixedBytes<32> = FixedBytes::from([0x02; 32]);
     let now = std::time::SystemTime::now();
@@ -163,7 +172,7 @@ async fn register_ecdsa_impl(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| U256::from(duration.as_secs()) + U256::from(86400))
         .unwrap_or_else(|_| {
-            info!("System time seems to be before the UNIX epoch.");
+            gadget_logging::info!("System time seems to be before the UNIX epoch.");
             U256::from(0)
         });
 
@@ -175,14 +184,14 @@ async fn register_ecdsa_impl(
             sig_expiry,
         )
         .await
-        .map_err(|_| Error::EigenlayerError("Failed to calculate hash".to_string()))?;
+        .map_err(|e| EigenlayerError::Other(e.to_string()))?;
 
     let operator_signature = wallet
         .sign_hash(&msg_to_sign)
         .await
         .map_err(|e| Error::SignatureError(e.to_string()))?;
 
-    let operator_signature_with_salt_and_expiry = ECDSAStakeRegistry::SignatureWithSaltAndExpiry {
+    let operator_signature_with_salt_and_expiry = ISignatureUtils::SignatureWithSaltAndExpiry {
         signature: operator_signature.as_bytes().into(),
         salt: digest_hash_salt,
         expiry: sig_expiry,
@@ -194,7 +203,7 @@ async fn register_ecdsa_impl(
 
     // --- Register the operator to AVS ---
 
-    info!("Building Transaction");
+    gadget_logging::info!("Building Transaction");
 
     let latest_block_number = provider
         .get_block_number()
@@ -206,9 +215,7 @@ async fn register_ecdsa_impl(
         .get_block_by_number(BlockNumberOrTag::Number(latest_block_number), false)
         .await
         .map_err(|e| Error::TransactionError(e.to_string()))?
-        .ok_or(Error::TransactionError(
-            "Failed to get latest block".into(),
-        ))?;
+        .ok_or(Error::TransactionError("Failed to get latest block".into()))?;
 
     // Get the base fee per gas from the latest block
     let base_fee_per_gas: u128 = latest_block
@@ -256,19 +263,19 @@ async fn register_ecdsa_impl(
         .estimate_gas(&tx)
         .await
         .map_err(|e| Error::TransactionError(e.to_string()))?;
-    info!("Gas Estimate: {}", gas_estimate);
+    gadget_logging::info!("Gas Estimate: {}", gas_estimate);
 
     // Set gas limit
     let tx = tx.with_gas_limit(gas_estimate);
 
-    info!("Building Transaction Envelope");
+    gadget_logging::info!("Building Transaction Envelope");
 
     let tx_envelope = tx
         .build(&wallet)
         .await
         .map_err(|e| Error::TransactionError(e.to_string()))?;
 
-    info!("Sending Transaction Envelope");
+    gadget_logging::info!("Sending Transaction Envelope");
 
     let result = provider
         .send_tx_envelope(tx_envelope)
@@ -278,35 +285,37 @@ async fn register_ecdsa_impl(
         .await
         .map_err(|e| Error::TransactionError(e.to_string()))?;
 
-    info!("Operator Registration to AVS Sent. Awaiting Receipt...");
+    gadget_logging::info!("Operator Registration to AVS Sent. Awaiting Receipt...");
 
-    info!("Operator Address: {}", operator_address);
-    info!("Stake Registry Address: {}", stake_registry_address);
-    info!("RPC Endpoint: {}", env.http_rpc_endpoint);
+    gadget_logging::info!("Operator Address: {}", operator_address);
+    gadget_logging::info!("Stake Registry Address: {}", stake_registry_address);
+    gadget_logging::info!("RPC Endpoint: {}", env.http_rpc_endpoint);
 
     let tx_hash = result
         .await
         .map_err(|e| Error::TransactionError(e.to_string()))?;
 
-    info!(
+    gadget_logging::info!(
         "Command for testing: cast code {} --rpc-url {}",
-        stake_registry_address, env.http_rpc_endpoint
+        stake_registry_address,
+        env.http_rpc_endpoint
     );
 
     let receipt = provider
         .get_transaction_receipt(tx_hash)
         .await
         .map_err(|e| Error::TransactionError(e.to_string()))?
-        .ok_or(Error::TransactionError(
-            "Failed to get receipt".into(),
-        ))?;
-    info!("Got Transaction Receipt: {:?}", receipt);
+        .ok_or(Error::TransactionError("Failed to get receipt".into()))?;
+
+    gadget_logging::info!("Got Transaction Receipt: {:?}", receipt);
 
     if !receipt.status() {
-        return Err(Error::EigenlayerError(
+        return Err(EigenlayerError::Registration(
             "Failed to register operator to AVS".to_string(),
-        ));
+        )
+        .into());
     }
-    info!("Operator Registration to AVS Succeeded");
+
+    gadget_logging::info!("Operator Registration to AVS Succeeded");
     Ok(())
 }

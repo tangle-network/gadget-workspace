@@ -21,12 +21,15 @@ url = { workspace = true, features = ["serde"] }
 libp2p = { workspace = true, optional = true }
 alloy-primitives = { workspace = true, optional = true }
 
+# Keystore
+gadget-keystore = { workspace = true, optional = true }
+
 [features]
 default = ["std", "tangle"]
 std = ["gadget-std/std", "serde_json"]
 
 # Core feature groups
-keystore = []
+keystore = ["gadget-keystore/default"]
 networking = ["dep:libp2p"]
 
 # Protocol-specific features

@@ -4902,6 +4902,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "clap",
+ "gadget-keystore",
  "gadget-std",
  "libp2p",
  "lock_api",
@@ -5158,7 +5159,6 @@ dependencies = [
  "gadget-config",
  "gadget-logging",
  "gadget-utils",
- "parking_lot",
  "thiserror 2.0.7",
  "tokio",
 ]
@@ -5167,11 +5167,20 @@ dependencies = [
 name = "gadget-runner-eigenlayer"
 version = "0.1.0"
 dependencies = [
+ "alloy-contract",
+ "alloy-network 0.5.4",
  "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-signer 0.5.4",
+ "alloy-signer-local",
  "async-trait",
  "eigensdk",
  "gadget-config",
+ "gadget-keystore",
+ "gadget-logging",
  "gadget-runner-core",
+ "gadget-utils",
  "thiserror 2.0.7",
 ]
 

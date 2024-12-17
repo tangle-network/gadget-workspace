@@ -4,14 +4,33 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-gadget-runner-core = { workspace = true }
+gadget-runner-core = { workspace = true, features = ["eigenlayer"] }
 alloy-primitives = { workspace = true }
+alloy-signer-local = { workspace = true }
+alloy-signer = { workspace = true }
+alloy-rpc-types = { workspace = true }
+alloy-network = { workspace = true }
+alloy-provider = { workspace = true }
+alloy-contract = { workspace = true }
 async-trait = { workspace = true }
-gadget-config = { workspace = true }
-eigensdk = { workspace = true }
+gadget-config = { workspace = true, features = ["std", "eigenlayer", "keystore"] }
+gadget-logging = { workspace = true }
+gadget-utils = { workspace = true, features = ["evm"] }
+eigensdk = { workspace = true, features = ["client-elcontracts", "types", "utils", "logging", "client-avsregistry"] }
 thiserror = { workspace = true }
+gadget-keystore = { workspace = true, optional = true, features = ["ecdsa", "bls"] }
 
 [features]
-default = ["bls", "ecdsa"]
+default = ["std"]
+
+std = [
+    "gadget-runner-core/std",
+    "gadget-keystore?/std",
+]
+no-std = [
+    "gadget-runner-core/no-std",
+]
+
 bls = []
 ecdsa = []
+keystore = ["gadget-keystore"]

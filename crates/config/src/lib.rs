@@ -13,6 +13,20 @@ pub mod supported_chains;
 pub use context_config::{ContextConfig, GadgetCLICoreSettings};
 pub use protocol::{Protocol, ProtocolSettings};
 
+// TODO: This is temporary to continue work with runners without the keystore completed
+#[cfg(all(feature = "keystore", feature = "std"))]
+impl GadgetConfiguration {
+    /// Creates a Keystore from the environment.
+    /// # Errors
+    ///
+    /// This function will return an error if any of the required environment variables are missing.
+    pub fn keystore(self) -> Result<gadget_keystore::Keystore, Error> {
+        let config = gadget_keystore::KeystoreConfig::new().fs_root(self.clone().keystore_uri);
+        gadget_keystore::Keystore::new(config)
+            .map_err(|e| Error::UnsupportedKeystoreUri(e.to_string()))
+    }
+}
+
 /// Errors that can occur while loading and using the gadget configuration.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

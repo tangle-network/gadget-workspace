@@ -1,11 +1,11 @@
-use std::future::Future;
-use std::pin::Pin;
-use tokio::sync::oneshot;
-use gadget_config::GadgetConfiguration;
-use gadget_utils::core::handler::InitializableEventHandler;
 use crate::config::BlueprintConfig;
 use crate::error::RunnerError as Error;
 use crate::jobs::JobBuilder;
+use core::pin::Pin;
+use futures::Future;
+use gadget_config::GadgetConfiguration;
+use gadget_utils::core::handler::InitializableEventHandler;
+use tokio::sync::oneshot;
 
 #[async_trait::async_trait]
 pub trait BackgroundService: Send + Sync + 'static {
@@ -20,10 +20,7 @@ pub struct BlueprintRunner {
 }
 
 impl BlueprintRunner {
-    pub fn new<C: BlueprintConfig + 'static>(
-        config: C,
-        env: GadgetConfiguration,
-    ) -> Self {
+    pub fn new<C: BlueprintConfig + 'static>(config: C, env: GadgetConfiguration) -> Self {
         Self {
             config: Box::new(config),
             jobs: Vec::new(),
@@ -64,7 +61,10 @@ impl BlueprintRunner {
         for job in self.jobs.drain(..) {
             all_futures.push(Box::pin(async move {
                 match job.init_event_handler().await {
-                    Some(receiver) => receiver.await.map_err(Error::Recv)?,
+                    Some(receiver) => receiver
+                        .await
+                        .map(|_| ())
+                        .map_err(|e| Error::Recv(e.to_string())),
                     None => Ok(()),
                 }
             })
@@ -76,7 +76,7 @@ impl BlueprintRunner {
             all_futures.push(Box::pin(async move {
                 receiver
                     .await
-                    .map_err(|e| Error::Recv)
+                    .map_err(|e| Error::Recv(e.to_string()))
                     .and(Ok(()))
             })
                 as Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>);

@@ -9,7 +9,6 @@ pub enum Error {
 
 #[async_trait]
 pub trait InitializableEventHandler {
-    async fn init_event_handler(
-        &self,
-    ) -> Option<tokio::sync::oneshot::Receiver<Result<(), Error>>>;
+    async fn init_event_handler(&self)
+        -> Option<tokio::sync::oneshot::Receiver<Result<(), Error>>>;
 }

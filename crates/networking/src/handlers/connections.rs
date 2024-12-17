@@ -2,7 +2,7 @@
 
 use crate::gossip::{MyBehaviourRequest, NetworkService};
 use crate::key_types::CryptoKeyCurve;
-use gadget_crypto::{hashing::keccak_256, KeyType};
+use gadget_crypto::{hashing::blake3_256, KeyType};
 use itertools::Itertools;
 use libp2p::PeerId;
 
@@ -14,10 +14,16 @@ impl NetworkService<'_> {
         _num_established: u32,
     ) {
         gadget_logging::debug!("Connection established");
-        if !self.crypto_peer_id_to_libp2p_id.read().await.iter().any(|(_, id)| id == &peer_id) {
-            let my_peer_id = self.swarm.local_peer_id().clone();
+        if !self
+            .crypto_peer_id_to_libp2p_id
+            .read()
+            .await
+            .iter()
+            .any(|(_, id)| id == &peer_id)
+        {
+            let my_peer_id = *self.swarm.local_peer_id();
             let msg = my_peer_id.to_bytes();
-            let hash = keccak_256(&msg);
+            let hash = blake3_256(&msg);
             match <CryptoKeyCurve as KeyType>::sign_with_secret_pre_hashed(
                 &mut self.crypto_secret_key.clone(),
                 &hash,
@@ -35,7 +41,7 @@ impl NetworkService<'_> {
                         .behaviour_mut()
                         .gossipsub
                         .add_explicit_peer(&peer_id);
-                    gadget_logging::info!("Sent handshake from {my_peer_id} to {peer_id}")
+                    gadget_logging::info!("Sent handshake from {my_peer_id} to {peer_id}");
                 }
                 Err(e) => {
                     gadget_logging::error!("Failed to sign handshake: {e}");
@@ -59,9 +65,10 @@ impl NetworkService<'_> {
                 .remove_explicit_peer(&peer_id);
             let mut pub_key_to_libp2p_id = self.crypto_peer_id_to_libp2p_id.write().await;
             let len_initial = 0;
-            pub_key_to_libp2p_id.retain(|_, id| &*id != &peer_id);
+            pub_key_to_libp2p_id.retain(|_, id| *id != peer_id);
             if pub_key_to_libp2p_id.len() == len_initial + 1 {
-                self.connected_peers.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+                self.connected_peers
+                    .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
             }
         }
     }

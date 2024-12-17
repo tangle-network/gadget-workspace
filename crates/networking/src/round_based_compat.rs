@@ -117,7 +117,7 @@ where
 
             let id = res.identifier_info.message_id;
 
-            let msg = match bincode::deserialize(&res.payload) {
+            let msg = match serde_json::from_slice(&res.payload) {
                 Ok(msg) => msg,
                 Err(err) => {
                     gadget_logging::error!(%err, "Failed to deserialize message (round_based_compat)");
@@ -196,7 +196,7 @@ where
                 user_id,
                 crypto_public_key: to_network_id,
             }),
-            payload: bincode::serialize(&out.msg).expect("Should be able to serialize message"),
+            payload: serde_json::to_vec(&out.msg).expect("Should be able to serialize message"),
         };
 
         match substream.send(protocol_message) {

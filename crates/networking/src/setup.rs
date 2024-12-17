@@ -1,6 +1,5 @@
 #![allow(unused_results, missing_docs)]
 
-use std::sync::atomic::AtomicUsize;
 use crate::gossip::{
     GossipHandle, IntraNodePayload, MyBehaviour, NetworkServiceWithoutSwarm, MAX_MESSAGE_SIZE,
 };
@@ -22,6 +21,7 @@ use libp2p::{
     swarm::dial_opts::DialOpts, StreamProtocol,
 };
 use lru_mem::LruCache;
+use std::sync::atomic::AtomicUsize;
 use tokio::select;
 use tokio::sync::{Mutex, RwLock};
 use tokio::task::{spawn, JoinHandle};
@@ -278,8 +278,6 @@ pub fn multiplexed_libp2p_network(config: NetworkConfig) -> NetworkResult {
     let ips_to_bind_to = [
         IpAddr::from_str("::").unwrap(),      // IN_ADDR_ANY_V6
         IpAddr::from_str("0.0.0.0").unwrap(), // IN_ADDR_ANY_V4
-        IpAddr::from_str("::1").unwrap(),
-        IpAddr::from_str("127.0.0.1").unwrap(),
     ];
 
     for addr in ips_to_bind_to {

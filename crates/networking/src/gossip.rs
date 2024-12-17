@@ -5,11 +5,10 @@
     clippy::exhaustive_enums
 )]
 
-use std::sync::atomic::AtomicUsize;
 use crate::key_types::{CryptoKeyPair, CryptoPublicKey, CryptoSignature};
 use crate::Error;
 use async_trait::async_trait;
-use gadget_crypto::hashing::keccak_256;
+use gadget_crypto::hashing::blake3_256;
 use gadget_std::collections::BTreeMap;
 use gadget_std::string::ToString;
 use gadget_std::sync::Arc;
@@ -20,6 +19,7 @@ use libp2p::{
 };
 use lru_mem::LruCache;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::AtomicUsize;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::{Mutex, RwLock};
 
@@ -362,7 +362,7 @@ impl Network for GossipHandle {
             drop(lock);
             match bincode::deserialize::<ProtocolMessage>(&message_bytes) {
                 Ok(message) => {
-                    let hash = keccak_256(&message_bytes);
+                    let hash = blake3_256(&message_bytes);
                     let mut map = self.recent_messages.lock();
                     if map
                         .insert(hash, ())
@@ -402,7 +402,8 @@ impl Network for GossipHandle {
             MessageType::Broadcast
         };
 
-        let raw_payload = bincode::serialize(&message).map_err(|err| Error::MessagingError(err.to_string()))?;
+        let raw_payload =
+            bincode::serialize(&message).map_err(|err| Error::MessagingError(err.to_string()))?;
         let payload_inner = match message_type {
             MessageType::Broadcast => GossipOrRequestResponse::Gossip(GossipMessage {
                 topic: self.topic.to_string(),

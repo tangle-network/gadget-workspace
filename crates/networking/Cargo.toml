@@ -35,7 +35,7 @@ gadget-crypto = { workspace = true, features = ["k256", "hashing"] }
 k256 = { workspace = true }
 
 # Round-based protocol support
-round-based = { workspace = true }
+round-based = { workspace = true, optional = true }
 
 [dev-dependencies]
 
@@ -72,8 +72,10 @@ std = [
     "tokio/full",
     "serde/std",
     "serde_json/std",
-    "round-based/std",
+    "round-based?/std",
 ]
+
+round-based-compat = ["round-based"]
 
 # Only one of these features should be enabled at a time.
 # If none are enabled, k256 ECDSA will be used by default.

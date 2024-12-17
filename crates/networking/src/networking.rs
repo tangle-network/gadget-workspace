@@ -3,7 +3,7 @@ use crate::Error;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::{Stream, StreamExt};
-use gadget_crypto::hashing::keccak_256;
+use gadget_crypto::hashing::blake3_256;
 use gadget_std::boxed::Box;
 use gadget_std::cmp::Reverse;
 use gadget_std::collections::{BinaryHeap, HashMap};
@@ -154,7 +154,7 @@ pub struct StreamKey {
 impl From<IdentifierInfo> for StreamKey {
     fn from(identifier_info: IdentifierInfo) -> Self {
         let str_repr = identifier_info.to_string();
-        let task_hash = keccak_256(str_repr.as_bytes());
+        let task_hash = blake3_256(str_repr.as_bytes());
         Self {
             task_hash,
             round_id: -1,
@@ -582,7 +582,7 @@ mod tests {
     use super::*;
     use crate::gossip::GossipHandle;
     use futures::{stream, StreamExt};
-    use gadget_crypto::hashing::sha2_256;
+    use gadget_crypto::hashing::blake3_256;
     use gadget_crypto::KeyType;
     use gadget_logging::setup_log;
     use gadget_std::collections::BTreeMap;
@@ -905,7 +905,7 @@ mod tests {
         let multiplexer1 = NetworkMultiplexer::new(network1);
 
         let stream_key = StreamKey {
-            task_hash: sha2_256(&[255u8]),
+            task_hash: blake3_256(&[255u8]),
             round_id: 100,
         };
 
@@ -1025,7 +1025,7 @@ mod tests {
 
         let stream_key = StreamKey {
             #[allow(clippy::cast_possible_truncation)]
-            task_hash: sha2_256(&[(cur_depth % 255) as u8]),
+            task_hash: blake3_256(&[(cur_depth % 255) as u8]),
             round_id: 0,
         };
 

@@ -1,11 +1,9 @@
+use crate::error::{K256Error, Result};
 use gadget_crypto_core::{KeyType, KeyTypeId};
+use gadget_std::string::{String, ToString};
 use gadget_std::UniformRand;
-use gadget_std::{
-    string::{String, ToString},
-};
 use k256::ecdsa::signature::SignerMut;
 use serde::{Deserialize, Serialize};
-use crate::error::{K256Error, Result};
 
 /// ECDSA key type
 pub struct K256Ecdsa;

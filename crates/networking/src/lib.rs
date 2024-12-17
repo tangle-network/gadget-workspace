@@ -5,8 +5,9 @@ pub mod gossip;
 pub mod handlers;
 pub mod messaging;
 pub mod networking;
+#[cfg(feature = "round-based-compat")]
 pub mod round_based_compat;
-
+#[cfg(feature = "round-based-compat")]
 pub use round_based;
 
 pub mod setup;

@@ -54,8 +54,8 @@ impl_schnorrkel_serde!(Secret, schnorrkel::SecretKey);
 impl_schnorrkel_serde!(SchnorrkelSignature, schnorrkel::Signature);
 
 impl KeyType for SchnorrkelSr25519 {
-    type Public = Public;
     type Secret = Secret;
+    type Public = Public;
     type Signature = SchnorrkelSignature;
     type Error = Sr25519Error;
 
@@ -113,4 +113,10 @@ impl KeyType for SchnorrkelSr25519 {
             false
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    gadget_crypto_core::impl_crypto_tests!(SchnorrkelSr25519, Secret, SchnorrkelSignature);
 }

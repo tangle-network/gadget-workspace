@@ -238,3 +238,21 @@ impl_sp_core_crypto!(SpSr25519, sr25519);
 impl Copy for SpEcdsaPublic {}
 impl Copy for SpEd25519Public {}
 impl Copy for SpSr25519Public {}
+
+#[cfg(test)]
+mod tests_ecdsa {
+    use super::*;
+    gadget_crypto_core::impl_crypto_tests!(SpEcdsa, SpEcdsaPair, SpEcdsaSignature);
+}
+
+#[cfg(test)]
+mod tests_ed25519 {
+    use super::*;
+    gadget_crypto_core::impl_crypto_tests!(SpEd25519, SpEd25519Pair, SpEd25519Signature);
+}
+
+#[cfg(test)]
+mod tests_sr25519 {
+    use super::*;
+    gadget_crypto_core::impl_crypto_tests!(SpSr25519, SpSr25519Pair, SpSr25519Signature);
+}

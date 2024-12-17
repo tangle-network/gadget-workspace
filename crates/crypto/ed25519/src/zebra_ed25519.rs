@@ -163,6 +163,5 @@ impl KeyType for Ed25519Zebra {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Generate tests for K256 ECDSA
     gadget_crypto_core::impl_crypto_tests!(Ed25519Zebra, Ed25519SigningKey, Ed25519Signature);
 }

@@ -4728,6 +4728,7 @@ dependencies = [
 name = "gadget-crypto"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "gadget-crypto-bls",
  "gadget-crypto-bn254",
  "gadget-crypto-core",
@@ -4765,6 +4766,7 @@ dependencies = [
  "ark-serialize 0.5.0",
  "gadget-crypto-core",
  "gadget-std",
+ "hex",
  "num-bigint",
  "num-traits",
  "serde",

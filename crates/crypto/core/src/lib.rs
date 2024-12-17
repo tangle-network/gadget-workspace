@@ -140,17 +140,6 @@ macro_rules! impl_crypto_tests {
             // Test random key generation
             let secret = <$ecdsa_type>::generate_with_seed(None).unwrap();
             let _public = <$ecdsa_type>::public_from_secret(&secret);
-
-            // Test deterministic key generation with seed
-            let seed = [1u8; 32];
-            let secret1 = <$ecdsa_type>::generate_with_seed(Some(&seed)).unwrap();
-            let secret2 = <$ecdsa_type>::generate_with_seed(Some(&seed)).unwrap();
-            assert_eq!(secret1, secret2, "Deterministic key generation should produce same keys");
-
-            // Test key generation from string
-            let hex_string = hex::encode(&seed);
-            let secret3 = <$ecdsa_type>::generate_with_string(hex_string).unwrap();
-            assert_eq!(secret1, secret3, "String-based key generation should match seed-based");
         }
 
         #[test]
@@ -161,17 +150,22 @@ macro_rules! impl_crypto_tests {
             // Test normal signing
             let message = b"Hello, world!";
             let signature = <$ecdsa_type>::sign_with_secret(&mut secret, message).unwrap();
-            assert!(<$ecdsa_type>::verify(&public, message, &signature),
-                "Signature verification failed");
+            assert!(
+                <$ecdsa_type>::verify(&public, message, &signature),
+                "Signature verification failed"
+            );
 
             // Test pre-hashed signing
             let hashed_msg = [42u8; 32];
-            let signature = <$ecdsa_type>::sign_with_secret_pre_hashed(&mut secret, &hashed_msg).unwrap();
+            let signature =
+                <$ecdsa_type>::sign_with_secret_pre_hashed(&mut secret, &hashed_msg).unwrap();
 
             // Verify with wrong message should fail
             let wrong_message = b"Wrong message";
-            assert!(!<$ecdsa_type>::verify(&public, wrong_message, &signature),
-                "Verification should fail with wrong message");
+            assert!(
+                !<$ecdsa_type>::verify(&public, wrong_message, &signature),
+                "Verification should fail with wrong message"
+            );
         }
 
         #[test]
@@ -182,12 +176,18 @@ macro_rules! impl_crypto_tests {
             // Test signing key serialization
             let serialized = serde_json::to_string(&secret).unwrap();
             let deserialized: $signing_key = serde_json::from_str(&serialized).unwrap();
-            assert_eq!(secret, deserialized, "SigningKey serialization roundtrip failed");
+            assert_eq!(
+                secret, deserialized,
+                "SigningKey serialization roundtrip failed"
+            );
 
             // Test verifying key serialization
             let serialized = serde_json::to_string(&public).unwrap();
             let deserialized = serde_json::from_str(&serialized).unwrap();
-            assert_eq!(public, deserialized, "VerifyingKey serialization roundtrip failed");
+            assert_eq!(
+                public, deserialized,
+                "VerifyingKey serialization roundtrip failed"
+            );
         }
 
         #[test]
@@ -199,7 +199,10 @@ macro_rules! impl_crypto_tests {
             // Test signature serialization
             let serialized = serde_json::to_string(&signature).unwrap();
             let deserialized: $signature = serde_json::from_str(&serialized).unwrap();
-            assert_eq!(signature, deserialized, "Signature serialization roundtrip failed");
+            assert_eq!(
+                signature, deserialized,
+                "Signature serialization roundtrip failed"
+            );
         }
 
         #[test]

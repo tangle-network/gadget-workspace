@@ -1,4 +1,4 @@
-use crate::key_types::CryptoPublicKey;
+use crate::key_types::PublicKey;
 use crate::Error;
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -36,16 +36,16 @@ impl Display for IdentifierInfo {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct ParticipantInfo {
     pub user_id: u16,
-    pub crypto_public_key: Option<CryptoPublicKey>,
+    pub public_key: Option<PublicKey>,
 }
 
 impl Display for ParticipantInfo {
     fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-        let crypto_public_key = self
-            .crypto_public_key
-            .map(|key| format!("crypto_public_key: {:?}", key))
+        let public_key = self
+            .public_key
+            .map(|key| format!("public_key: {:?}", key))
             .unwrap_or_default();
-        write!(f, "user_id: {}, {}", self.user_id, crypto_public_key)
+        write!(f, "user_id: {}, {}", self.user_id, public_key)
     }
 }
 
@@ -78,22 +78,22 @@ pub trait Network: Send + Sync + 'static {
         from: UserID,
         to: Option<UserID>,
         payload: &Payload,
-        from_account_id: Option<CryptoPublicKey>,
-        to_network_id: Option<CryptoPublicKey>,
+        from_account_id: Option<PublicKey>,
+        to_network_id: Option<PublicKey>,
     ) -> ProtocolMessage {
         let sender_participant_info = ParticipantInfo {
             user_id: from,
-            crypto_public_key: from_account_id,
+            public_key: from_account_id,
         };
         let receiver_participant_info = to.map(|to| ParticipantInfo {
             user_id: to,
-            crypto_public_key: to_network_id,
+            public_key: to_network_id,
         });
         ProtocolMessage {
             identifier_info,
             sender: sender_participant_info,
             recipient: receiver_participant_info,
-            payload: serialize(payload).expect("Failed to serialize message"),
+            payload: bincode::serialize(payload).expect("Failed to serialize message"),
         }
     }
 }
@@ -227,7 +227,7 @@ impl Drop for MultiplexedReceiver {
 // we need to make a key that is unique for each (send->dest) pair and stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct CompoundStreamKey {
-    stream: StreamKey,
+    stream_key: StreamKey,
     send_user: UserID,
     recv_user: Option<UserID>,
 }
@@ -271,7 +271,7 @@ impl NetworkMultiplexer {
             let task1 = async move {
                 while let Some((stream_id, msg)) = rx_from_substreams.recv().await {
                     let compound_key = CompoundStreamKey {
-                        stream: stream_id,
+                        stream_key: stream_id,
                         send_user: msg.sender.user_id,
                         recv_user: msg.recipient.as_ref().map(|p| p.user_id),
                     };
@@ -322,7 +322,7 @@ impl NetworkMultiplexer {
                     {
                         let stream_id = multiplexed_message.stream_id;
                         let compound_key = CompoundStreamKey {
-                            stream: stream_id,
+                            stream_key: stream_id,
                             send_user: msg.sender.user_id,
                             recv_user: msg.recipient.as_ref().map(|p| p.user_id),
                         };
@@ -544,39 +544,6 @@ impl Network for SubNetwork {
     }
 }
 
-/// Serializes an object to a JSON byte vector.
-///
-/// # Arguments
-/// * `object` - The object to serialize that implements the `Serialize` trait
-///
-/// # Returns
-/// * `Result<Vec<u8>, serde_json::Error>` - The serialized bytes on success
-///
-/// # Errors
-/// * Returns a `serde_json::Error` if serialization fails due to invalid data structures
-///     or other JSON serialization errors
-pub fn serialize(object: &impl Serialize) -> Result<Vec<u8>, serde_json::Error> {
-    serde_json::to_vec(object)
-}
-
-/// Deserializes a JSON byte vector to an object.
-///
-/// # Arguments
-/// * `data` - The JSON byte vector to deserialize
-///
-/// # Returns
-/// * `Result<T, serde_json::Error>` - The deserialized object on success
-///
-/// # Errors
-/// * Returns a `serde_json::Error` if deserialization fails due to invalid JSON data
-///     or other deserialization errors
-pub fn deserialize<'a, T>(data: &'a [u8]) -> Result<T, serde_json::Error>
-where
-    T: Deserialize<'a>,
-{
-    serde_json::from_slice::<T>(data)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -589,6 +556,13 @@ mod tests {
     use serde::{Deserialize, Serialize};
 
     const TOPIC: &str = "/gadget/test/1.0.0";
+
+    fn deserialize<'a, T>(data: &'a [u8]) -> Result<T, crate::Error>
+    where
+        T: Deserialize<'a>,
+    {
+        bincode::deserialize(data).map_err(|err| Error::Other(err.to_string()))
+    }
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
     enum Msg {
@@ -862,9 +836,9 @@ mod tests {
         Ok(())
     }
 
-    fn node_with_id() -> (crate::gossip::GossipHandle, crate::key_types::CryptoKeyPair) {
+    fn node_with_id() -> (crate::gossip::GossipHandle, crate::key_types::KeyPair) {
         let identity = libp2p::identity::Keypair::generate_ed25519();
-        let crypto_key = crate::key_types::CryptoKeyCurve::generate_with_seed(None).unwrap();
+        let crypto_key = crate::key_types::Curve::generate_with_seed(None).unwrap();
         let bind_port = 0;
         let handle =
             crate::setup::start_p2p_network(crate::setup::NetworkConfig::new_service_network(

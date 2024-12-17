@@ -1,4 +1,4 @@
-use crate::key_types::CryptoPublicKey;
+use crate::key_types::PublicKey;
 use crate::networking::{
     IdentifierInfo, NetworkMultiplexer, ProtocolMessage, StreamKey, SubNetwork,
 };
@@ -31,7 +31,7 @@ where
         mux: Arc<NetworkMultiplexer>,
         i: PartyIndex,
         task_hash: [u8; 32],
-        parties: BTreeMap<PartyIndex, CryptoPublicKey>,
+        parties: BTreeMap<PartyIndex, PublicKey>,
     ) -> Self {
         let (tx_forward, rx) = tokio::sync::mpsc::unbounded_channel();
         // By default, we create 10 substreams for each party.
@@ -75,7 +75,7 @@ pub struct NetworkWrapper<M> {
     incoming_queue: VecDeque<Incoming<M>>,
     /// Participants in the network with their corresponding public keys.
     /// Note: This is a `BTreeMap` to ensure that the participants are sorted by their party index.
-    participants: BTreeMap<PartyIndex, CryptoPublicKey>,
+    participants: BTreeMap<PartyIndex, PublicKey>,
     next_msg_id: Arc<NextMessageId>,
     tx_forward: tokio::sync::mpsc::UnboundedSender<ProtocolMessage>,
     rx: tokio::sync::mpsc::UnboundedReceiver<ProtocolMessage>,
@@ -190,11 +190,11 @@ where
             identifier_info,
             sender: ParticipantInfo {
                 user_id: this.me,
-                crypto_public_key: this.participants.get(&this.me).copied(),
+                public_key: this.participants.get(&this.me).copied(),
             },
             recipient: to.map(|user_id| ParticipantInfo {
                 user_id,
-                crypto_public_key: to_network_id,
+                public_key: to_network_id,
             }),
             payload: serde_json::to_vec(&out.msg).expect("Should be able to serialize message"),
         };

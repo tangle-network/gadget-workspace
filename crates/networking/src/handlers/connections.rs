@@ -1,7 +1,7 @@
 #![allow(unused_results, clippy::used_underscore_binding)]
 
 use crate::gossip::{MyBehaviourRequest, NetworkService};
-use crate::key_types::CryptoKeyCurve;
+use crate::key_types::Curve;
 use gadget_crypto::{hashing::blake3_256, KeyType};
 use itertools::Itertools;
 use libp2p::PeerId;
@@ -15,7 +15,7 @@ impl NetworkService<'_> {
     ) {
         gadget_logging::debug!("Connection established");
         if !self
-            .crypto_peer_id_to_libp2p_id
+            .public_key_to_libp2p_id
             .read()
             .await
             .iter()
@@ -24,13 +24,13 @@ impl NetworkService<'_> {
             let my_peer_id = *self.swarm.local_peer_id();
             let msg = my_peer_id.to_bytes();
             let hash = blake3_256(&msg);
-            match <CryptoKeyCurve as KeyType>::sign_with_secret_pre_hashed(
-                &mut self.crypto_secret_key.clone(),
+            match <Curve as KeyType>::sign_with_secret_pre_hashed(
+                &mut self.secret_key.clone(),
                 &hash,
             ) {
                 Ok(signature) => {
                     let handshake = MyBehaviourRequest::Handshake {
-                        crypto_public_key: self.crypto_secret_key.public(),
+                        public_key: self.secret_key.public(),
                         signature,
                     };
                     self.swarm
@@ -63,7 +63,7 @@ impl NetworkService<'_> {
                 .behaviour_mut()
                 .gossipsub
                 .remove_explicit_peer(&peer_id);
-            let mut pub_key_to_libp2p_id = self.crypto_peer_id_to_libp2p_id.write().await;
+            let mut pub_key_to_libp2p_id = self.public_key_to_libp2p_id.write().await;
             let len_initial = 0;
             pub_key_to_libp2p_id.retain(|_, id| *id != peer_id);
             if pub_key_to_libp2p_id.len() == len_initial + 1 {
@@ -111,7 +111,7 @@ impl NetworkService<'_> {
         error: libp2p::swarm::DialError,
     ) {
         if let libp2p::swarm::DialError::Transport(addrs) = error {
-            let read = self.crypto_peer_id_to_libp2p_id.read().await;
+            let read = self.public_key_to_libp2p_id.read().await;
             for (addr, err) in addrs {
                 if let Some(peer_id) = get_peer_id_from_multiaddr(&addr) {
                     if !read.values().contains(&peer_id) {

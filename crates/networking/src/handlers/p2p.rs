@@ -1,7 +1,7 @@
 #![allow(unused_results)]
 
 use crate::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
-use crate::key_types::CryptoKeyCurve;
+use crate::key_types::Curve;
 use gadget_crypto::hashing::blake3_256;
 use gadget_crypto::KeyType;
 use gadget_std::string::ToString;
@@ -85,25 +85,24 @@ impl NetworkService<'_> {
         use crate::gossip::MyBehaviourRequest::{Handshake, Message};
         let result = match req {
             Handshake {
-                crypto_public_key,
+                public_key,
                 signature,
             } => {
                 gadget_logging::trace!("Received handshake from peer: {peer}");
                 // Verify the signature
                 let msg = peer.to_bytes();
                 let hash = blake3_256(&msg);
-                let valid =
-                    <CryptoKeyCurve as KeyType>::verify(&crypto_public_key, &hash, &signature);
+                let valid = <Curve as KeyType>::verify(&public_key, &hash, &signature);
                 if !valid {
                     gadget_logging::warn!("Invalid signature from peer: {peer}");
                     let _ = self.swarm.disconnect_peer_id(peer);
                     return;
                 }
                 if self
-                    .crypto_peer_id_to_libp2p_id
+                    .public_key_to_libp2p_id
                     .write()
                     .await
-                    .insert(crypto_public_key, peer)
+                    .insert(public_key, peer)
                     .is_none()
                 {
                     let _ = self.connected_peers.fetch_add(1, Ordering::Relaxed);
@@ -112,15 +111,15 @@ impl NetworkService<'_> {
                 let my_peer_id = self.swarm.local_peer_id();
                 let msg = my_peer_id.to_bytes();
                 let hash = blake3_256(&msg);
-                match <CryptoKeyCurve as KeyType>::sign_with_secret_pre_hashed(
-                    &mut self.crypto_secret_key.clone(),
+                match <Curve as KeyType>::sign_with_secret_pre_hashed(
+                    &mut self.secret_key.clone(),
                     &hash,
                 ) {
                     Ok(signature) => self.swarm.behaviour_mut().p2p.send_response(
                         channel,
                         MyBehaviourResponse::Handshaked {
-                            crypto_public_key: self.crypto_secret_key.public(),
-                            crypto_signature: signature,
+                            public_key: self.secret_key.public(),
+                            signature,
                         },
                     ),
                     Err(e) => {
@@ -168,32 +167,28 @@ impl NetworkService<'_> {
         use crate::gossip::MyBehaviourResponse::{Handshaked, MessageHandled};
         match message {
             Handshaked {
-                crypto_public_key,
-                crypto_signature,
+                public_key,
+                signature,
             } => {
                 gadget_logging::trace!("Received handshake-ack message from peer: {peer}");
                 let msg = peer.to_bytes();
                 let hash = blake3_256(&msg);
-                let valid = <CryptoKeyCurve as KeyType>::verify(
-                    &crypto_public_key,
-                    &hash,
-                    &crypto_signature,
-                );
+                let valid = <Curve as KeyType>::verify(&public_key, &hash, &signature);
                 if !valid {
                     gadget_logging::warn!("Invalid signature from peer: {peer}");
                     // TODO: report this peer.
-                    self.crypto_peer_id_to_libp2p_id
+                    self.public_key_to_libp2p_id
                         .write()
                         .await
-                        .remove(&crypto_public_key);
+                        .remove(&public_key);
                     let _ = self.swarm.disconnect_peer_id(peer);
                     return;
                 }
                 if self
-                    .crypto_peer_id_to_libp2p_id
+                    .public_key_to_libp2p_id
                     .write()
                     .await
-                    .insert(crypto_public_key, peer)
+                    .insert(public_key, peer)
                     .is_none()
                 {
                     let _ = self.connected_peers.fetch_add(1, Ordering::Relaxed);

@@ -133,45 +133,45 @@ pub trait KeyType: Sized + 'static {
 
 #[macro_export]
 macro_rules! impl_crypto_tests {
-    ($ecdsa_type:ty, $signing_key:ty, $signature:ty) => {
+    ($crypto_type:ty, $signing_key:ty, $signature:ty) => {
         use $crate::KeyType;
         #[test]
         fn test_key_generation() {
             // Test random key generation
-            let secret = <$ecdsa_type>::generate_with_seed(None).unwrap();
-            let _public = <$ecdsa_type>::public_from_secret(&secret);
+            let secret = <$crypto_type>::generate_with_seed(None).unwrap();
+            let _public = <$crypto_type>::public_from_secret(&secret);
         }
 
         #[test]
         fn test_signing_and_verification() {
-            let mut secret = <$ecdsa_type>::generate_with_seed(None).unwrap();
-            let public = <$ecdsa_type>::public_from_secret(&secret);
+            let mut secret = <$crypto_type>::generate_with_seed(None).unwrap();
+            let public = <$crypto_type>::public_from_secret(&secret);
 
             // Test normal signing
             let message = b"Hello, world!";
-            let signature = <$ecdsa_type>::sign_with_secret(&mut secret, message).unwrap();
+            let signature = <$crypto_type>::sign_with_secret(&mut secret, message).unwrap();
             assert!(
-                <$ecdsa_type>::verify(&public, message, &signature),
+                <$crypto_type>::verify(&public, message, &signature),
                 "Signature verification failed"
             );
 
             // Test pre-hashed signing
             let hashed_msg = [42u8; 32];
             let signature =
-                <$ecdsa_type>::sign_with_secret_pre_hashed(&mut secret, &hashed_msg).unwrap();
+                <$crypto_type>::sign_with_secret_pre_hashed(&mut secret, &hashed_msg).unwrap();
 
             // Verify with wrong message should fail
             let wrong_message = b"Wrong message";
             assert!(
-                !<$ecdsa_type>::verify(&public, wrong_message, &signature),
+                !<$crypto_type>::verify(&public, wrong_message, &signature),
                 "Verification should fail with wrong message"
             );
         }
 
         #[test]
         fn test_key_serialization() {
-            let secret = <$ecdsa_type>::generate_with_seed(None).unwrap();
-            let public = <$ecdsa_type>::public_from_secret(&secret);
+            let secret = <$crypto_type>::generate_with_seed(None).unwrap();
+            let public = <$crypto_type>::public_from_secret(&secret);
 
             // Test signing key serialization
             let serialized = serde_json::to_string(&secret).unwrap();
@@ -192,9 +192,9 @@ macro_rules! impl_crypto_tests {
 
         #[test]
         fn test_signature_serialization() {
-            let mut secret = <$ecdsa_type>::generate_with_seed(None).unwrap();
+            let mut secret = <$crypto_type>::generate_with_seed(None).unwrap();
             let message = b"Test message";
-            let signature = <$ecdsa_type>::sign_with_secret(&mut secret, message).unwrap();
+            let signature = <$crypto_type>::sign_with_secret(&mut secret, message).unwrap();
 
             // Test signature serialization
             let serialized = serde_json::to_string(&signature).unwrap();
@@ -207,10 +207,10 @@ macro_rules! impl_crypto_tests {
 
         #[test]
         fn test_key_comparison() {
-            let secret1 = <$ecdsa_type>::generate_with_seed(None).unwrap();
-            let secret2 = <$ecdsa_type>::generate_with_seed(None).unwrap();
-            let public1 = <$ecdsa_type>::public_from_secret(&secret1);
-            let public2 = <$ecdsa_type>::public_from_secret(&secret2);
+            let secret1 = <$crypto_type>::generate_with_seed(None).unwrap();
+            let secret2 = <$crypto_type>::generate_with_seed(None).unwrap();
+            let public1 = <$crypto_type>::public_from_secret(&secret1);
+            let public2 = <$crypto_type>::public_from_secret(&secret2);
 
             // Test Ord implementation
             assert!(public1 != public2, "Different keys should not be equal");

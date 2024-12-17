@@ -205,7 +205,7 @@ macro_rules! impl_sp_core_key_type {
                 }
             }
 
-            impl std::ops::Deref for [<$key_type Pair>] {
+            impl gadget_std::ops::Deref for [<$key_type Pair>] {
                 type Target = $pair_type;
 
                 fn deref(&self) -> &Self::Target {
@@ -213,7 +213,7 @@ macro_rules! impl_sp_core_key_type {
                 }
             }
 
-            impl std::ops::DerefMut for [<$key_type Pair>] {
+            impl gadget_std::ops::DerefMut for [<$key_type Pair>] {
                 fn deref_mut(&mut self) -> &mut Self::Target {
                     &mut self.0
                 }
@@ -225,7 +225,7 @@ macro_rules! impl_sp_core_key_type {
 /// Implements both pair/public and signature traits for a given sp_core crypto type
 macro_rules! impl_sp_core_crypto {
     ($key_type:ident, $module:ident) => {
-        impl_sp_core_pair_public!($key_type, sp_core::$module::Pair, $module::Public);
+        impl_sp_core_pair_public!($key_type, sp_core::$module::Pair, sp_core::$module::Public);
         impl_sp_core_signature!($key_type, sp_core::$module::Pair);
         impl_sp_core_key_type!($key_type, sp_core::$module::Pair);
     };

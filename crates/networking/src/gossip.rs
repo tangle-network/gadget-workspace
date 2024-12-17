@@ -5,7 +5,7 @@
     clippy::exhaustive_enums
 )]
 
-use crate::key_types::{CryptoKeyPair, CryptoPublicKey, CryptoSignature};
+use crate::key_types::{KeyPair, PublicKey, Signature};
 use crate::Error;
 use async_trait::async_trait;
 use gadget_crypto::hashing::blake3_256;
@@ -46,8 +46,8 @@ pub type InboundMapping = (IdentTopic, UnboundedSender<Vec<u8>>, Arc<AtomicUsize
 
 pub struct NetworkServiceWithoutSwarm<'a> {
     pub inbound_mapping: &'a [InboundMapping],
-    pub crypto_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<CryptoPublicKey, PeerId>>>,
-    pub crypto_secret_key: &'a CryptoKeyPair,
+    pub public_key_to_libp2p_id: Arc<RwLock<BTreeMap<PublicKey, PeerId>>>,
+    pub secret_key: &'a KeyPair,
     pub connected_peers: Arc<AtomicUsize>,
     pub span: tracing::Span,
     pub my_id: PeerId,
@@ -61,8 +61,8 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
         NetworkService {
             swarm,
             inbound_mapping: self.inbound_mapping,
-            crypto_peer_id_to_libp2p_id: &self.crypto_peer_id_to_libp2p_id,
-            crypto_secret_key: self.crypto_secret_key,
+            public_key_to_libp2p_id: &self.public_key_to_libp2p_id,
+            secret_key: self.secret_key,
             connected_peers: self.connected_peers.clone(),
             span: &self.span,
             my_id: self.my_id,
@@ -73,9 +73,9 @@ impl<'a> NetworkServiceWithoutSwarm<'a> {
 pub struct NetworkService<'a> {
     pub swarm: &'a mut libp2p::Swarm<MyBehaviour>,
     pub inbound_mapping: &'a [InboundMapping],
-    pub crypto_peer_id_to_libp2p_id: &'a Arc<RwLock<BTreeMap<CryptoPublicKey, PeerId>>>,
+    pub public_key_to_libp2p_id: &'a Arc<RwLock<BTreeMap<PublicKey, PeerId>>>,
     pub connected_peers: Arc<AtomicUsize>,
-    pub crypto_secret_key: &'a CryptoKeyPair,
+    pub secret_key: &'a KeyPair,
     pub span: &'a tracing::Span,
     pub my_id: PeerId,
 }
@@ -265,7 +265,7 @@ pub struct GossipHandle {
     pub tx_to_outbound: UnboundedSender<IntraNodePayload>,
     pub rx_from_inbound: Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>>>,
     pub connected_peers: Arc<AtomicUsize>,
-    pub crypto_peer_id_to_libp2p_id: Arc<RwLock<BTreeMap<CryptoPublicKey, PeerId>>>,
+    pub public_key_to_libp2p_id: Arc<RwLock<BTreeMap<PublicKey, PeerId>>>,
     pub recent_messages: parking_lot::Mutex<LruCache<[u8; 32], ()>>,
     pub my_id: PeerId,
 }
@@ -283,8 +283,8 @@ impl GossipHandle {
     }
 
     /// Returns an ordered vector of public keys of the peers that are connected to the gossipsub topic.
-    pub async fn peers(&self) -> Vec<CryptoPublicKey> {
-        self.crypto_peer_id_to_libp2p_id
+    pub async fn peers(&self) -> Vec<PublicKey> {
+        self.public_key_to_libp2p_id
             .read()
             .await
             .keys()
@@ -325,8 +325,8 @@ pub struct GossipMessage {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourRequest {
     Handshake {
-        crypto_public_key: CryptoPublicKey,
-        signature: CryptoSignature,
+        public_key: PublicKey,
+        signature: Signature,
     },
     Message {
         topic: String,
@@ -338,8 +338,8 @@ pub enum MyBehaviourRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MyBehaviourResponse {
     Handshaked {
-        crypto_public_key: CryptoPublicKey,
-        crypto_signature: CryptoSignature,
+        public_key: PublicKey,
+        signature: Signature,
     },
     MessageHandled,
 }
@@ -381,11 +381,11 @@ impl Network for GossipHandle {
 
     async fn send_message(&self, message: ProtocolMessage) -> Result<(), Error> {
         let message_type = if let Some(ParticipantInfo {
-            crypto_public_key: Some(to),
+            public_key: Some(to),
             ..
         }) = message.recipient
         {
-            let pub_key_to_libp2p_id = self.crypto_peer_id_to_libp2p_id.read().await;
+            let pub_key_to_libp2p_id = self.public_key_to_libp2p_id.read().await;
             gadget_logging::trace!("Handshake count: {}", pub_key_to_libp2p_id.len());
             let libp2p_id = pub_key_to_libp2p_id
                 .get(&to)

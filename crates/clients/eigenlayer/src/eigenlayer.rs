@@ -2,9 +2,10 @@ use crate::error::{EigenlayerClientError, Result};
 use alloy_primitives::{Address, Bytes};
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
 use alloy_transport::BoxTransport;
-use eigensdk::client_avsregistry::reader::AvsRegistryReader;
+use eigensdk::{client_avsregistry::reader::AvsRegistryReader, utils::get_ws_provider};
 use gadget_config::GadgetConfiguration;
 use gadget_std::collections::HashMap;
+use gadget_utils_evm::{get_provider_http, get_wallet_provider_http};
 use num_bigint::BigInt;
 
 /// Client that provides access to EigenLayer utility functions through the use of the [`GadgetConfiguration`].
@@ -17,18 +18,8 @@ impl EigenlayerClient {
     ///
     /// # Returns
     /// - [`The HTTP provider`](RootProvider<BoxTransport>)
-    pub fn get_provider_http(&self) -> Result<RootProvider<BoxTransport>> {
-        let http_endpoint = self.config.http_rpc_endpoint.clone();
-        let http_endpoint = http_endpoint
-            .parse()
-            .map_err(|e| gadget_std::io::Error::new(gadget_std::io::ErrorKind::InvalidInput, e))?;
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .on_http(http_endpoint)
-            .root()
-            .clone()
-            .boxed();
-        Ok(provider)
+    pub fn get_provider_http(&self) -> RootProvider<BoxTransport> {
+        get_provider_http(&self.config.http_rpc_endpoint)
     }
 
     /// Get the provider for this client's http endpoint with the specified [`Wallet`](EthereumWallet)
@@ -38,34 +29,16 @@ impl EigenlayerClient {
     pub fn get_wallet_provider_http(
         &self,
         wallet: alloy_network::EthereumWallet,
-    ) -> Result<RootProvider<BoxTransport>> {
-        let http_endpoint = self.config.http_rpc_endpoint.clone();
-        let http_endpoint = http_endpoint.parse()?;
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .wallet(wallet)
-            .on_http(http_endpoint)
-            .root()
-            .clone()
-            .boxed();
-        Ok(provider)
+    ) -> RootProvider<BoxTransport> {
+        get_wallet_provider_http(&self.config.http_rpc_endpoint, wallet)
     }
 
     /// Get the provider for this client's websocket endpoint
     ///
     /// # Returns
     /// - [`The WS provider`](RootProvider<BoxTransport>)
-    pub async fn get_provider_ws(&self) -> Result<RootProvider<BoxTransport>> {
-        let ws_endpoint = self.config.ws_rpc_endpoint.clone();
-        let provider = ProviderBuilder::new()
-            .with_recommended_fillers()
-            .on_ws(alloy_provider::WsConnect::new(ws_endpoint))
-            .await
-            .unwrap()
-            .root()
-            .clone()
-            .boxed();
-        Ok(provider)
+    pub async fn get_provider_ws(&self) -> RootProvider<BoxTransport> {
+        get_ws_provider(&self.config.ws_rpc_endpoint)
     }
 
     /// Get the slasher address from the `DelegationManager` contract
@@ -76,7 +49,7 @@ impl EigenlayerClient {
     /// # Errors
     /// - [`Error::AlloyContract`] - If the call to the contract fails (i.e. the contract doesn't exist at the given address)
     pub async fn get_slasher_address(&self, delegation_manager_addr: Address) -> Result<Address> {
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let delegation_manager =
             eigensdk::utils::delegationmanager::DelegationManager::DelegationManagerInstance::new(
                 delegation_manager_addr,
@@ -163,7 +136,7 @@ impl EigenlayerClient {
 
         let cancellation_token = tokio_util::sync::CancellationToken::new();
         let token_clone = cancellation_token.clone();
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let current_block = provider.get_block_number().await?;
         let operator_info_clone = operator_info_service.clone();
 
@@ -238,7 +211,7 @@ impl EigenlayerClient {
         quorum_number: u8,
     ) -> Result<Vec<eigensdk::utils::stakeregistry::IStakeRegistry::StakeUpdate>> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),
@@ -261,7 +234,7 @@ impl EigenlayerClient {
         index: alloy_primitives::U256,
     ) -> Result<eigensdk::utils::stakeregistry::IStakeRegistry::StakeUpdate> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),
@@ -284,7 +257,7 @@ impl EigenlayerClient {
         block_number: u32,
     ) -> Result<alloy_primitives::Uint<96, 2>> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),
@@ -326,7 +299,7 @@ impl EigenlayerClient {
         quorum_number: u8,
     ) -> Result<eigensdk::utils::stakeregistry::IStakeRegistry::StakeUpdate> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),
@@ -362,7 +335,7 @@ impl EigenlayerClient {
     ) -> Result<alloy_primitives::Uint<96, 2>> {
         use alloy_provider::Provider as _;
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),
@@ -384,7 +357,7 @@ impl EigenlayerClient {
         quorum_number: u8,
     ) -> Result<alloy_primitives::U256> {
         let contract_addresses = self.config.protocol_settings.eigenlayer()?;
-        let provider = self.get_provider_http()?;
+        let provider = self.get_provider_http();
         let registry_coordinator = eigensdk::utils::registrycoordinator::RegistryCoordinator::new(
             contract_addresses.registry_coordinator_address,
             provider.clone(),

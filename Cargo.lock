@@ -4822,6 +4822,7 @@ dependencies = [
  "alloy-network 0.5.4",
  "alloy-primitives",
  "alloy-provider",
+ "alloy-pubsub",
  "alloy-transport",
  "eigensdk",
  "gadget-anvil-utils",

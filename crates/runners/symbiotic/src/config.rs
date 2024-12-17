@@ -1,31 +1,23 @@
-use crate::{
-    config::{GadgetConfiguration, ProtocolSpecificSettings},
-    error, info,
-    keystore::BackendExt,
-    utils::evm::{get_provider_http, get_wallet_provider_http},
-};
 use alloy_network::EthereumWallet;
+use gadget_config::{GadgetConfiguration, ProtocolSettings};
+use gadget_runner_core::config::BlueprintConfig;
+use gadget_runner_core::error::RunnerError as Error;
+use gadget_utils::gadget_utils_evm::{get_provider_http, get_wallet_provider_http};
 use symbiotic_rs::OperatorRegistry;
-
-use super::{BlueprintConfig, RunnerError};
 
 #[derive(Clone, Copy, Default)]
 pub struct SymbioticConfig {}
 
 #[async_trait::async_trait]
 impl BlueprintConfig for SymbioticConfig {
-    async fn requires_registration(
-        &self,
-        env: &GadgetConfiguration<parking_lot::RawRwLock>,
-    ) -> Result<bool, RunnerError> {
-        if env.skip_registration {
-            return Ok(false);
-        }
-
-        let ProtocolSpecificSettings::Symbiotic(contract_addresses) = &env.protocol_specific else {
-            return Err(RunnerError::InvalidProtocol(
-                "Expected Symbiotic protocol".into(),
-            ));
+    async fn requires_registration(&self, env: &GadgetConfiguration) -> Result<bool, Error> {
+        let contract_addresses = match env.protocol_settings {
+            ProtocolSettings::Symbiotic(addresses) => addresses,
+            _ => {
+                return Err(gadget_runner_core::error::RunnerError::InvalidProtocol(
+                    "Expected Symbiotic protocol".into(),
+                ));
+            }
         };
         let operator_registry_address = contract_addresses.operator_registry_address;
 
@@ -40,19 +32,19 @@ impl BlueprintConfig for SymbioticConfig {
             .call()
             .await
             .map(|r| r._0)
-            .map_err(|e| RunnerError::SymbioticError(e.to_string()))?;
+            .map_err(|e| Error::Symbiotic(e.to_string()))?;
 
         Ok(!is_registered)
     }
 
-    async fn register(
-        &self,
-        env: &GadgetConfiguration<parking_lot::RawRwLock>,
-    ) -> Result<(), RunnerError> {
-        let ProtocolSpecificSettings::Symbiotic(contract_addresses) = &env.protocol_specific else {
-            return Err(RunnerError::InvalidProtocol(
-                "Expected Symbiotic protocol".into(),
-            ));
+    async fn register(&self, env: &GadgetConfiguration) -> Result<(), Error> {
+        let contract_addresses = match env.protocol_settings {
+            ProtocolSettings::Symbiotic(addresses) => addresses,
+            _ => {
+                return Err(gadget_runner_core::error::RunnerError::InvalidProtocol(
+                    "Expected Symbiotic protocol".into(),
+                ));
+            }
         };
         let operator_registry_address = contract_addresses.operator_registry_address;
 
@@ -69,9 +61,9 @@ impl BlueprintConfig for SymbioticConfig {
             .await?;
 
         if result.status() {
-            info!("Operator registered successfully");
+            gadget_logging::info!("Operator registered successfully");
         } else {
-            error!("Operator registration failed");
+            gadget_logging::error!("Operator registration failed");
         }
 
         Ok(())

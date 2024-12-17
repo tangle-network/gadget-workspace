@@ -20,7 +20,7 @@ impl GadgetConfiguration {
     /// # Errors
     ///
     /// This function will return an error if any of the required environment variables are missing.
-    pub fn keystore(self) -> Result<gadget_keystore::Keystore, Error> {
+    pub fn keystore(&self) -> Result<gadget_keystore::Keystore, Error> {
         let config = gadget_keystore::KeystoreConfig::new().fs_root(self.clone().keystore_uri);
         gadget_keystore::Keystore::new(config)
             .map_err(|e| Error::UnsupportedKeystoreUri(e.to_string()))
@@ -213,17 +213,19 @@ fn load_inner(config: ContextConfig) -> Result<GadgetConfiguration, Error> {
         #[cfg(feature = "symbiotic")]
         {
             ProtocolSettings::from_symbiotic(crate::protocol::SymbioticContractAddresses {
-                operator_registry: operator_registry
+                operator_registry_address: operator_registry
                     .ok_or(Error::MissingSymbioticContractAddresses)?,
-                network_registry: network_registry
+                network_registry_address: network_registry
                     .ok_or(Error::MissingSymbioticContractAddresses)?,
-                base_delegator: base_delegator.ok_or(Error::MissingSymbioticContractAddresses)?,
-                network_opt_in_service: network_opt_in_service
+                base_delegator_address: base_delegator
                     .ok_or(Error::MissingSymbioticContractAddresses)?,
-                vault_opt_in_service: vault_opt_in_service
+                network_opt_in_service_address: network_opt_in_service
                     .ok_or(Error::MissingSymbioticContractAddresses)?,
-                slasher: slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
-                veto_slasher: veto_slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
+                vault_opt_in_service_address: vault_opt_in_service
+                    .ok_or(Error::MissingSymbioticContractAddresses)?,
+                slasher_address: slasher.ok_or(Error::MissingSymbioticContractAddresses)?,
+                veto_slasher_address: veto_slasher
+                    .ok_or(Error::MissingSymbioticContractAddresses)?,
             })
         }
         #[cfg(not(feature = "symbiotic"))]

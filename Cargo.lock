@@ -5187,10 +5187,33 @@ dependencies = [
 [[package]]
 name = "gadget-runner-symbiotic"
 version = "0.1.0"
+dependencies = [
+ "alloy-network 0.5.4",
+ "async-trait",
+ "gadget-config",
+ "gadget-keystore",
+ "gadget-logging",
+ "gadget-runner-core",
+ "gadget-utils",
+ "symbiotic-rs",
+ "thiserror 2.0.7",
+]
 
 [[package]]
 name = "gadget-runner-tangle"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "gadget-config",
+ "gadget-keystore",
+ "gadget-logging",
+ "gadget-runner-core",
+ "gadget-utils",
+ "sp-core 31.0.0",
+ "subxt",
+ "tangle-subxt",
+ "thiserror 2.0.7",
+]
 
 [[package]]
 name = "gadget-runners"
@@ -11334,6 +11357,17 @@ dependencies = [
  "thiserror 1.0.69",
  "url",
  "zip",
+]
+
+[[package]]
+name = "symbiotic-rs"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "710f217361c13c427c851164e0996f3bb0907be5d8889acbe3b6c15318a3a84c"
+dependencies = [
+ "alloy-contract",
+ "alloy-sol-types",
+ "serde",
 ]
 
 [[package]]

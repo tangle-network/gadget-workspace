@@ -1,14 +1,13 @@
-use crate::config::ProtocolSpecificSettings;
-use crate::{config::GadgetConfiguration, runners::RunnerError};
-use crate::{info, tx};
+use gadget_config::{GadgetConfiguration, ProtocolSettings};
+use gadget_runner_core::config::BlueprintConfig;
+use gadget_runner_core::error::{RunnerError as Error, RunnerError};
 use sp_core::Pair;
+use subxt::tx;
 use subxt::tx::Signer;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets as TanglePriceTargets;
 use tangle_subxt::tangle_testnet_runtime::api::services::calls::types::register::RegistrationArgs;
-
-use super::BlueprintConfig;
 
 /// Wrapper for `tangle_subxt`'s [`PriceTargets`]
 ///
@@ -43,31 +42,18 @@ pub struct TangleConfig {
 
 #[async_trait::async_trait]
 impl BlueprintConfig for TangleConfig {
-    async fn requires_registration(
-        &self,
-        env: &GadgetConfiguration<parking_lot::RawRwLock>,
-    ) -> Result<bool, RunnerError> {
+    async fn requires_registration(&self, env: &GadgetConfiguration) -> Result<bool, Error> {
         requires_registration_impl(env).await
     }
 
-    async fn register(
-        &self,
-        env: &GadgetConfiguration<parking_lot::RawRwLock>,
-    ) -> Result<(), RunnerError> {
+    async fn register(&self, env: &GadgetConfiguration) -> Result<(), Error> {
         register_impl(self.clone().price_targets, vec![], env).await
     }
 }
 
-pub async fn requires_registration_impl(
-    env: &GadgetConfiguration<parking_lot::RawRwLock>,
-) -> Result<bool, RunnerError> {
-    if env.skip_registration {
-        return Ok(false);
-    }
-
-    // Get the blueprint_id from the Tangle protocol specific settings
-    let blueprint_id = match &env.protocol_specific {
-        ProtocolSpecificSettings::Tangle(settings) => settings.blueprint_id,
+pub async fn requires_registration_impl(env: &GadgetConfiguration) -> Result<bool, Error> {
+    let blueprint_id = match env.protocol_settings {
+        ProtocolSettings::Tangle(settings) => settings.blueprint_id,
         _ => {
             return Err(RunnerError::InvalidProtocol(
                 "Expected Tangle protocol".into(),
@@ -97,14 +83,14 @@ pub async fn requires_registration_impl(
 pub async fn register_impl(
     price_targets: PriceTargets,
     registration_args: RegistrationArgs,
-    env: &GadgetConfiguration<parking_lot::RawRwLock>,
+    env: &GadgetConfiguration,
 ) -> Result<(), RunnerError> {
     let client = env.client().await?;
     let signer = env.first_sr25519_signer()?;
     let ecdsa_pair = env.first_ecdsa_signer()?;
 
     // Parse Tangle protocol specific settings
-    let ProtocolSpecificSettings::Tangle(blueprint_settings) = &env.protocol_specific else {
+    let ProtocolSettings::Tangle(blueprint_settings) = env.protocol_settings else {
         return Err(RunnerError::InvalidProtocol(
             "Expected Tangle protocol".into(),
         ));
@@ -139,6 +125,6 @@ pub async fn register_impl(
 
     // send the tx to the tangle and exit.
     let result = tx::tangle::send(&client, &signer, &xt).await?;
-    info!("Registered operator with hash: {:?}", result);
+    gadget_logging::info!("Registered operator with hash: {:?}", result);
     Ok(())
 }

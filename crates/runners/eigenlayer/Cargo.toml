@@ -18,7 +18,7 @@ gadget-logging = { workspace = true }
 gadget-utils = { workspace = true, features = ["evm"] }
 eigensdk = { workspace = true, features = ["client-elcontracts", "types", "utils", "logging", "client-avsregistry"] }
 thiserror = { workspace = true }
-gadget-keystore = { workspace = true, optional = true, features = ["ecdsa", "bls"] }
+gadget-keystore = { workspace = true, optional = true, features = ["ecdsa", "bn254"] }
 
 [features]
 default = ["std"]

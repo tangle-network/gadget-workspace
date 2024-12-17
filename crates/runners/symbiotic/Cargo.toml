@@ -4,3 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+async-trait = { workspace = true }
+alloy-network = { workspace = true }
+gadget-config = { workspace = true, features = ["std", "symbiotic", "keystore"] }
+gadget-runner-core = { workspace = true, features = ["symbiotic"] }
+symbiotic-rs = { workspace = true }
+gadget-utils = { workspace = true, features = ["evm"] }
+gadget-logging = { workspace = true }
+gadget-keystore = { workspace = true, features = ["ecdsa"] }
+thiserror = { workspace = true }

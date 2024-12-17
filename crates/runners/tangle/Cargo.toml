@@ -4,3 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+gadget-runner-core = { workspace = true, features = ["tangle"] }
+async-trait = { workspace = true }
+gadget-config = { workspace = true, features = ["std", "tangle", "keystore"] }
+gadget-logging = { workspace = true }
+gadget-utils = { workspace = true, features = ["tangle"] }
+thiserror = { workspace = true }
+gadget-keystore = { workspace = true, optional = true, features = ["ecdsa", "bls"] }
+sp-core = { workspace = true }
+tangle-subxt = { workspace = true }
+subxt = { workspace = true, features = ["jsonrpsee"] }

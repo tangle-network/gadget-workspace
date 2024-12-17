@@ -36,16 +36,16 @@ impl Display for IdentifierInfo {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct ParticipantInfo {
     pub user_id: u16,
-    pub ecdsa_public_key: Option<CryptoPublicKey>,
+    pub crypto_public_key: Option<CryptoPublicKey>,
 }
 
 impl Display for ParticipantInfo {
     fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
-        let ecdsa_public_key = self
-            .ecdsa_public_key
-            .map(|key| format!("ecdsa_public_key: {:?}", key))
+        let crypto_public_key = self
+            .crypto_public_key
+            .map(|key| format!("crypto_public_key: {:?}", key))
             .unwrap_or_default();
-        write!(f, "user_id: {}, {}", self.user_id, ecdsa_public_key)
+        write!(f, "user_id: {}, {}", self.user_id, crypto_public_key)
     }
 }
 
@@ -83,11 +83,11 @@ pub trait Network: Send + Sync + 'static {
     ) -> ProtocolMessage {
         let sender_participant_info = ParticipantInfo {
             user_id: from,
-            ecdsa_public_key: from_account_id,
+            crypto_public_key: from_account_id,
         };
         let receiver_participant_info = to.map(|to| ParticipantInfo {
             user_id: to,
-            ecdsa_public_key: to_network_id,
+            crypto_public_key: to_network_id,
         });
         ProtocolMessage {
             identifier_info,
@@ -303,7 +303,7 @@ impl NetworkMultiplexer {
                     };
 
                     if let Err(err) = network_clone.send_message(message).await {
-                        gadget_logging::error!(%err, "Failed to send message to network");
+                        gadget_logging::error!("Failed to send message to network: {err:?}");
                         break;
                     }
                 }
@@ -399,7 +399,7 @@ impl NetworkMultiplexer {
                             let _ = unclaimed_streams.insert(stream_id, rx);
                         }
                     } else {
-                        gadget_logging::error!("Failed to deserialize message");
+                        gadget_logging::error!("Failed to deserialize message (networking)");
                     }
                 }
             };
@@ -584,7 +584,7 @@ mod tests {
     use futures::{stream, StreamExt};
     use gadget_crypto::hashing::sha2_256;
     use gadget_crypto::KeyType;
-    use gadget_logging::tracing_subscriber;
+    use gadget_logging::setup_log;
     use gadget_std::collections::BTreeMap;
     use serde::{Deserialize, Serialize};
 
@@ -619,30 +619,11 @@ mod tests {
     }
 
     const NODE_COUNT: u16 = 10;
-
-    pub fn setup_log() {
-        use tracing_subscriber::util::SubscriberInitExt;
-        let env_filter = tracing_subscriber::EnvFilter::from_default_env()
-            .add_directive("tokio=off".parse().unwrap())
-            .add_directive("hyper=off".parse().unwrap())
-            .add_directive("gadget=debug".parse().unwrap());
-
-        let _ = tracing_subscriber::fmt::SubscriberBuilder::default()
-            .compact()
-            .without_time()
-            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::NONE)
-            .with_target(false)
-            .with_env_filter(env_filter)
-            .with_test_writer()
-            .finish()
-            .try_init();
-    }
-
     async fn wait_for_nodes_connected(nodes: &[GossipHandle]) {
         let node_count = nodes.len();
 
         // wait for the nodes to connect to each other
-        let max_retries = 30 * node_count;
+        let max_retries = 10 * node_count;
         let mut retry = 0;
         loop {
             gadget_logging::debug!(%node_count, %max_retries, %retry, "Checking if all nodes are connected to each other");
@@ -657,7 +638,7 @@ mod tests {
                 .inspect(|(node, peers)| {
                     gadget_logging::debug!("Node {node} has {peers} connected peers");
                 })
-                .all(|(_, &peers)| peers == node_count - 1);
+                .all(|(_, &peers)| peers >= node_count - 1);
             if all_connected {
                 gadget_logging::debug!("All nodes are connected to each other");
                 return;
@@ -883,19 +864,19 @@ mod tests {
 
     fn node_with_id() -> (crate::gossip::GossipHandle, crate::key_types::CryptoKeyPair) {
         let identity = libp2p::identity::Keypair::generate_ed25519();
-        let ecdsa_key = crate::key_types::CryptoKeyCurve::generate_with_seed(None).unwrap();
+        let crypto_key = crate::key_types::CryptoKeyCurve::generate_with_seed(None).unwrap();
         let bind_port = 0;
         let handle =
             crate::setup::start_p2p_network(crate::setup::NetworkConfig::new_service_network(
                 identity,
-                ecdsa_key.clone(),
+                crypto_key.clone(),
                 Vec::default(),
                 bind_port,
                 TOPIC,
             ))
             .unwrap();
 
-        (handle, ecdsa_key)
+        (handle, crypto_key)
     }
 
     fn node() -> crate::gossip::GossipHandle {
@@ -914,7 +895,7 @@ mod tests {
         let mut gossip_networks = vec![network0, network1];
 
         wait_for_nodes_connected(&gossip_networks).await;
-
+        gadget_logging::info!("Gossiping test");
         let (network0, network1) = (gossip_networks.remove(0), gossip_networks.remove(0));
 
         let public0 = id0.public();

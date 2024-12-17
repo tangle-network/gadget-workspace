@@ -27,7 +27,6 @@ serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
 hex = { workspace = true }
 itertools = { workspace = true, features = ["use_alloc"] }
-matchbox_socket = { workspace = true }
 parking_lot = { workspace = true }
 thiserror = { workspace = true }
 

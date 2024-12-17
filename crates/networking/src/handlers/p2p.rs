@@ -1,5 +1,6 @@
 #![allow(unused_results)]
 
+use std::sync::atomic::Ordering;
 use crate::gossip::{MyBehaviourRequest, MyBehaviourResponse, NetworkService};
 use crate::key_types::CryptoKeyCurve;
 use gadget_crypto::hashing::keccak_256;
@@ -73,42 +74,6 @@ impl NetworkService<'_> {
         }
     }
 
-    #[tracing::instrument(skip(self, message))]
-    async fn handle_p2p_response(
-        &mut self,
-        peer: PeerId,
-        request_id: request_response::OutboundRequestId,
-        message: MyBehaviourResponse,
-    ) {
-        use crate::gossip::MyBehaviourResponse::{Handshaked, MessageHandled};
-        match message {
-            Handshaked {
-                ecdsa_public_key,
-                ecdsa_signature,
-            } => {
-                let msg = peer.to_bytes();
-                let hash = keccak_256(&msg);
-                let valid =
-                    <CryptoKeyCurve as KeyType>::verify(&ecdsa_public_key, &hash, &ecdsa_signature);
-                if !valid {
-                    gadget_logging::warn!("Invalid signature from peer: {peer}");
-                    // TODO: report this peer.
-                    self.ecdsa_peer_id_to_libp2p_id
-                        .write()
-                        .await
-                        .remove(&ecdsa_public_key);
-                    let _ = self.swarm.disconnect_peer_id(peer);
-                    return;
-                }
-                self.ecdsa_peer_id_to_libp2p_id
-                    .write()
-                    .await
-                    .insert(ecdsa_public_key, peer);
-            }
-            MessageHandled => {}
-        }
-    }
-
     #[tracing::instrument(skip(self, req, channel))]
     async fn handle_p2p_request(
         &mut self,
@@ -120,7 +85,7 @@ impl NetworkService<'_> {
         use crate::gossip::MyBehaviourRequest::{Handshake, Message};
         let result = match req {
             Handshake {
-                ecdsa_public_key,
+                crypto_public_key,
                 signature,
             } => {
                 gadget_logging::trace!("Received handshake from peer: {peer}");
@@ -128,31 +93,36 @@ impl NetworkService<'_> {
                 let msg = peer.to_bytes();
                 let hash = keccak_256(&msg);
                 let valid =
-                    <CryptoKeyCurve as KeyType>::verify(&ecdsa_public_key, &hash, &signature);
+                    <CryptoKeyCurve as KeyType>::verify(&crypto_public_key, &hash, &signature);
                 if !valid {
                     gadget_logging::warn!("Invalid signature from peer: {peer}");
                     let _ = self.swarm.disconnect_peer_id(peer);
                     return;
                 }
-                self.ecdsa_peer_id_to_libp2p_id
+                if self.crypto_peer_id_to_libp2p_id
                     .write()
                     .await
-                    .insert(ecdsa_public_key, peer);
+                    .insert(crypto_public_key, peer)
+                    .is_none() {
+                    let _ = self.connected_peers.fetch_add(1, Ordering::Relaxed);
+                }
                 // Send response with our public key
                 let my_peer_id = self.swarm.local_peer_id();
                 let msg = my_peer_id.to_bytes();
                 let hash = keccak_256(&msg);
                 match <CryptoKeyCurve as KeyType>::sign_with_secret_pre_hashed(
-                    &mut self.ecdsa_secret_key.clone(),
+                    &mut self.crypto_secret_key.clone(),
                     &hash,
                 ) {
-                    Ok(signature) => self.swarm.behaviour_mut().p2p.send_response(
-                        channel,
-                        MyBehaviourResponse::Handshaked {
-                            ecdsa_public_key: self.ecdsa_secret_key.public(),
-                            ecdsa_signature: signature,
-                        },
-                    ),
+                    Ok(signature) => {
+                        self.swarm.behaviour_mut().p2p.send_response(
+                            channel,
+                            MyBehaviourResponse::Handshaked {
+                                crypto_public_key: self.crypto_secret_key.public(),
+                                crypto_signature: signature,
+                            },
+                        )
+                    },
                     Err(e) => {
                         gadget_logging::error!("Failed to sign message: {e}");
                         return;
@@ -185,6 +155,46 @@ impl NetworkService<'_> {
         };
         if result.is_err() {
             gadget_logging::error!("Failed to send response for {request_id}");
+        }
+    }
+
+    #[tracing::instrument(skip(self, message))]
+    async fn handle_p2p_response(
+        &mut self,
+        peer: PeerId,
+        request_id: request_response::OutboundRequestId,
+        message: MyBehaviourResponse,
+    ) {
+        use crate::gossip::MyBehaviourResponse::{Handshaked, MessageHandled};
+        match message {
+            Handshaked {
+                crypto_public_key,
+                crypto_signature,
+            } => {
+                gadget_logging::trace!("Received handshake-ack message from peer: {peer}");
+                let msg = peer.to_bytes();
+                let hash = keccak_256(&msg);
+                let valid =
+                    <CryptoKeyCurve as KeyType>::verify(&crypto_public_key, &hash, &crypto_signature);
+                if !valid {
+                    gadget_logging::warn!("Invalid signature from peer: {peer}");
+                    // TODO: report this peer.
+                    self.crypto_peer_id_to_libp2p_id
+                        .write()
+                        .await
+                        .remove(&crypto_public_key);
+                    let _ = self.swarm.disconnect_peer_id(peer);
+                    return;
+                }
+                if self.crypto_peer_id_to_libp2p_id
+                    .write()
+                    .await
+                    .insert(crypto_public_key, peer)
+                    .is_none() {
+                    let _ = self.connected_peers.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+            MessageHandled => {}
         }
     }
 }

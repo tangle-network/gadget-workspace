@@ -51,7 +51,7 @@ macro_rules! impl_sp_core_pair_public {
                     S: serde::Serializer,
                 {
                     let bytes = self.0.to_raw_vec();
-                    serializer.serialize_bytes(&bytes)
+                    Vec::serialize(&bytes, serializer)
                 }
             }
 
@@ -69,7 +69,7 @@ macro_rules! impl_sp_core_pair_public {
             }
 
             /// Wrapper struct for the cryptographic public key.
-            #[derive(Clone)]
+            #[derive(Clone, serde::Serialize, serde::Deserialize)]
             pub struct [<$key_type Public>](pub <$pair_type as sp_core::Pair>::Public);
 
             impl PartialEq for [<$key_type Public>]{
@@ -97,28 +97,6 @@ macro_rules! impl_sp_core_pair_public {
                     write!(f, "{:?}", self.0.to_raw_vec())
                 }
             }
-
-            impl serde::Serialize for [<$key_type Public>]{
-                fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
-                where
-                    S: serde::Serializer,
-                {
-                    let bytes = self.0.to_raw_vec();
-                    serializer.serialize_bytes(&bytes)
-                }
-            }
-
-            impl<'de> serde::Deserialize<'de> for [<$key_type Public>]{
-                fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
-                where
-                    D: serde::Deserializer<'de>,
-                {
-                    let bytes = <Vec<u8>>::deserialize(deserializer)?;
-                    let public = <$pair_type as sp_core::Pair>::Public::from_slice(&bytes)
-                        .map_err(|_| serde::de::Error::custom("Invalid public key length"))?;
-                    Ok([<$key_type Public>](public))
-                }
-            }
         }
     };
 }
@@ -127,7 +105,7 @@ macro_rules! impl_sp_core_pair_public {
 macro_rules! impl_sp_core_signature {
     ($key_type:ident, $pair_type:ty) => {
         paste::paste! {
-            #[derive(Clone, PartialEq, Eq)]
+            #[derive(Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
             pub struct [<$key_type Signature>](pub <$pair_type as sp_core::Pair>::Signature);
 
             impl PartialOrd for [<$key_type Signature>] {
@@ -145,27 +123,6 @@ macro_rules! impl_sp_core_signature {
             impl gadget_std::fmt::Debug for [<$key_type Signature>] {
                 fn fmt(&self, f: &mut gadget_std::fmt::Formatter<'_>) -> gadget_std::fmt::Result {
                     write!(f, "{:?}", self.0.0)
-                }
-            }
-
-            impl serde::Serialize for [<$key_type Signature>] {
-                fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
-                where
-                    S: serde::Serializer,
-                {
-                    serializer.serialize_bytes(self.0.as_ref())
-                }
-            }
-
-            impl<'de> serde::Deserialize<'de> for [<$key_type Signature>] {
-                fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
-                where
-                    D: serde::Deserializer<'de>,
-                {
-                    let bytes = <Vec<u8>>::deserialize(deserializer)?;
-                    let sig = <$pair_type as sp_core::Pair>::Signature::from_slice(&bytes)
-                        .ok_or_else(|| serde::de::Error::custom("Invalid signature length"))?;
-                    Ok([<$key_type Signature>](sig))
                 }
             }
         }

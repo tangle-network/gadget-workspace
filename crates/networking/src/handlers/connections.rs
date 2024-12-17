@@ -11,20 +11,20 @@ impl NetworkService<'_> {
     pub(crate) async fn handle_connection_established(
         &mut self,
         peer_id: PeerId,
-        num_established: u32,
+        _num_established: u32,
     ) {
         gadget_logging::debug!("Connection established");
-        if num_established == 1 {
-            let my_peer_id = self.swarm.local_peer_id();
+        if !self.crypto_peer_id_to_libp2p_id.read().await.iter().any(|(_, id)| id == &peer_id) {
+            let my_peer_id = self.swarm.local_peer_id().clone();
             let msg = my_peer_id.to_bytes();
             let hash = keccak_256(&msg);
             match <CryptoKeyCurve as KeyType>::sign_with_secret_pre_hashed(
-                &mut self.ecdsa_secret_key.clone(),
+                &mut self.crypto_secret_key.clone(),
                 &hash,
             ) {
                 Ok(signature) => {
                     let handshake = MyBehaviourRequest::Handshake {
-                        ecdsa_public_key: self.ecdsa_secret_key.public(),
+                        crypto_public_key: self.crypto_secret_key.public(),
                         signature,
                     };
                     self.swarm
@@ -35,6 +35,7 @@ impl NetworkService<'_> {
                         .behaviour_mut()
                         .gossipsub
                         .add_explicit_peer(&peer_id);
+                    gadget_logging::info!("Sent handshake from {my_peer_id} to {peer_id}")
                 }
                 Err(e) => {
                     gadget_logging::error!("Failed to sign handshake: {e}");
@@ -56,6 +57,12 @@ impl NetworkService<'_> {
                 .behaviour_mut()
                 .gossipsub
                 .remove_explicit_peer(&peer_id);
+            let mut pub_key_to_libp2p_id = self.crypto_peer_id_to_libp2p_id.write().await;
+            let len_initial = 0;
+            pub_key_to_libp2p_id.retain(|_, id| &*id != &peer_id);
+            if pub_key_to_libp2p_id.len() == len_initial + 1 {
+                self.connected_peers.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+            }
         }
     }
 
@@ -97,7 +104,7 @@ impl NetworkService<'_> {
         error: libp2p::swarm::DialError,
     ) {
         if let libp2p::swarm::DialError::Transport(addrs) = error {
-            let read = self.ecdsa_peer_id_to_libp2p_id.read().await;
+            let read = self.crypto_peer_id_to_libp2p_id.read().await;
             for (addr, err) in addrs {
                 if let Some(peer_id) = get_peer_id_from_multiaddr(&addr) {
                     if !read.values().contains(&peer_id) {

@@ -130,3 +130,91 @@ pub trait KeyType: Sized + 'static {
     ) -> Result<Self::Signature, Self::Error>;
     fn verify(public: &Self::Public, msg: &[u8], signature: &Self::Signature) -> bool;
 }
+
+#[macro_export]
+macro_rules! impl_crypto_tests {
+    ($ecdsa_type:ty, $signing_key:ty, $signature:ty) => {
+        use $crate::KeyType;
+        #[test]
+        fn test_key_generation() {
+            // Test random key generation
+            let secret = <$ecdsa_type>::generate_with_seed(None).unwrap();
+            let _public = <$ecdsa_type>::public_from_secret(&secret);
+
+            // Test deterministic key generation with seed
+            let seed = [1u8; 32];
+            let secret1 = <$ecdsa_type>::generate_with_seed(Some(&seed)).unwrap();
+            let secret2 = <$ecdsa_type>::generate_with_seed(Some(&seed)).unwrap();
+            assert_eq!(secret1, secret2, "Deterministic key generation should produce same keys");
+
+            // Test key generation from string
+            let hex_string = hex::encode(&seed);
+            let secret3 = <$ecdsa_type>::generate_with_string(hex_string).unwrap();
+            assert_eq!(secret1, secret3, "String-based key generation should match seed-based");
+        }
+
+        #[test]
+        fn test_signing_and_verification() {
+            let mut secret = <$ecdsa_type>::generate_with_seed(None).unwrap();
+            let public = <$ecdsa_type>::public_from_secret(&secret);
+
+            // Test normal signing
+            let message = b"Hello, world!";
+            let signature = <$ecdsa_type>::sign_with_secret(&mut secret, message).unwrap();
+            assert!(<$ecdsa_type>::verify(&public, message, &signature),
+                "Signature verification failed");
+
+            // Test pre-hashed signing
+            let hashed_msg = [42u8; 32];
+            let signature = <$ecdsa_type>::sign_with_secret_pre_hashed(&mut secret, &hashed_msg).unwrap();
+
+            // Verify with wrong message should fail
+            let wrong_message = b"Wrong message";
+            assert!(!<$ecdsa_type>::verify(&public, wrong_message, &signature),
+                "Verification should fail with wrong message");
+        }
+
+        #[test]
+        fn test_key_serialization() {
+            let secret = <$ecdsa_type>::generate_with_seed(None).unwrap();
+            let public = <$ecdsa_type>::public_from_secret(&secret);
+
+            // Test signing key serialization
+            let serialized = serde_json::to_string(&secret).unwrap();
+            let deserialized: $signing_key = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(secret, deserialized, "SigningKey serialization roundtrip failed");
+
+            // Test verifying key serialization
+            let serialized = serde_json::to_string(&public).unwrap();
+            let deserialized = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(public, deserialized, "VerifyingKey serialization roundtrip failed");
+        }
+
+        #[test]
+        fn test_signature_serialization() {
+            let mut secret = <$ecdsa_type>::generate_with_seed(None).unwrap();
+            let message = b"Test message";
+            let signature = <$ecdsa_type>::sign_with_secret(&mut secret, message).unwrap();
+
+            // Test signature serialization
+            let serialized = serde_json::to_string(&signature).unwrap();
+            let deserialized: $signature = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(signature, deserialized, "Signature serialization roundtrip failed");
+        }
+
+        #[test]
+        fn test_key_comparison() {
+            let secret1 = <$ecdsa_type>::generate_with_seed(None).unwrap();
+            let secret2 = <$ecdsa_type>::generate_with_seed(None).unwrap();
+            let public1 = <$ecdsa_type>::public_from_secret(&secret1);
+            let public2 = <$ecdsa_type>::public_from_secret(&secret2);
+
+            // Test Ord implementation
+            assert!(public1 != public2, "Different keys should not be equal");
+            assert_eq!(public1.cmp(&public1), gadget_std::cmp::Ordering::Equal);
+
+            // Verify consistency between PartialOrd and Ord
+            assert_eq!(public1.partial_cmp(&public2), Some(public1.cmp(&public2)));
+        }
+    };
+}

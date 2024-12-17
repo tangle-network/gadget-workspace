@@ -31,7 +31,8 @@ macro_rules! impl_schnorrkel_serde {
                 &self,
                 serializer: S,
             ) -> core::result::Result<S::Ok, S::Error> {
-                serializer.serialize_bytes(&self.0.to_bytes())
+                let bytes = self.0.to_bytes().into();
+                Vec::serialize(&bytes, serializer)
             }
         }
 

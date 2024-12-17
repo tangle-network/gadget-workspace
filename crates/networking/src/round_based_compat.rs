@@ -73,7 +73,7 @@ pub struct NetworkWrapper<M> {
     /// A queue of incoming messages.
     #[allow(dead_code)]
     incoming_queue: VecDeque<Incoming<M>>,
-    /// Participants in the network with their corresponding ECDSA public keys.
+    /// Participants in the network with their corresponding public keys.
     /// Note: This is a `BTreeMap` to ensure that the participants are sorted by their party index.
     participants: BTreeMap<PartyIndex, CryptoPublicKey>,
     next_msg_id: Arc<NextMessageId>,
@@ -120,7 +120,7 @@ where
             let msg = match bincode::deserialize(&res.payload) {
                 Ok(msg) => msg,
                 Err(err) => {
-                    gadget_logging::error!(%err, "Failed to deserialize message");
+                    gadget_logging::error!(%err, "Failed to deserialize message (round_based_compat)");
                     return Poll::Ready(Some(Err(crate::Error::Other(err.to_string()))));
                 }
             };
@@ -190,11 +190,11 @@ where
             identifier_info,
             sender: ParticipantInfo {
                 user_id: this.me,
-                ecdsa_public_key: this.participants.get(&this.me).copied(),
+                crypto_public_key: this.participants.get(&this.me).copied(),
             },
             recipient: to.map(|user_id| ParticipantInfo {
                 user_id,
-                ecdsa_public_key: to_network_id,
+                crypto_public_key: to_network_id,
             }),
             payload: bincode::serialize(&out.msg).expect("Should be able to serialize message"),
         };

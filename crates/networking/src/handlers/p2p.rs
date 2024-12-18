@@ -90,7 +90,6 @@ impl NetworkService<'_> {
                 gadget_logging::trace!("Received handshake from peer: {peer}");
                 // Verify the signature
                 let msg = peer.to_bytes();
-                //let hash = blake3_256(&msg);
                 let valid = <Curve as KeyType>::verify(&public_key, &msg, &signature);
                 if !valid {
                     gadget_logging::warn!("Invalid initial handshake signature from peer: {peer}");
@@ -109,7 +108,6 @@ impl NetworkService<'_> {
                 // Send response with our public key
                 let my_peer_id = self.swarm.local_peer_id();
                 let msg = my_peer_id.to_bytes();
-                //let hash = blake3_256(&msg);
                 match <Curve as KeyType>::sign_with_secret(&mut self.secret_key.clone(), &msg) {
                     Ok(signature) => self.swarm.behaviour_mut().p2p.send_response(
                         channel,
@@ -168,7 +166,6 @@ impl NetworkService<'_> {
             } => {
                 gadget_logging::trace!("Received handshake-ack message from peer: {peer}");
                 let msg = peer.to_bytes();
-                //let hash = blake3_256(&msg);
                 let valid = <Curve as KeyType>::verify(&public_key, &msg, &signature);
                 if !valid {
                     gadget_logging::warn!(

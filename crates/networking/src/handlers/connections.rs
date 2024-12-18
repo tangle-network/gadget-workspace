@@ -23,7 +23,6 @@ impl NetworkService<'_> {
         {
             let my_peer_id = *self.swarm.local_peer_id();
             let msg = my_peer_id.to_bytes();
-            //let hash = blake3_256(&msg);
             match <Curve as KeyType>::sign_with_secret(&mut self.secret_key.clone(), &msg) {
                 Ok(signature) => {
                     let handshake = MyBehaviourRequest::Handshake {

@@ -37,8 +37,6 @@ k256 = { workspace = true }
 # Round-based protocol support
 round-based = { workspace = true, optional = true }
 
-[dev-dependencies]
-
 [target.'cfg(not(target_family = "wasm"))'.dependencies.libp2p]
 workspace = true
 features = [
@@ -60,6 +58,9 @@ features = [
     "dns",
     "autonat",
 ]
+
+[dev-dependencies]
+tracing-subscriber = { workspace = true }
 
 [features]
 default = ["std"]

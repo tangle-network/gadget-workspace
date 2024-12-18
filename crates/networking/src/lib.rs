@@ -14,6 +14,9 @@ pub mod setup;
 
 use gadget_std::string::String;
 
+/// Unique identifier for a party
+pub type UserID = u16;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Network error: {0}")]

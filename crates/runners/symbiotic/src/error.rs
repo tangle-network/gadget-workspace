@@ -9,14 +9,8 @@ pub enum SymbioticError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("Configuration error: {0}")]
-    Config(String),
-
-    #[error("Chain error: {0}")]
-    Chain(String),
-
-    #[error("Bridge error: {0}")]
-    Bridge(String),
+    #[error("Registration error: {0}")]
+    Registration(String),
 
     #[error("Other error: {0}")]
     Other(String),

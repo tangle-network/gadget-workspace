@@ -42,6 +42,3 @@ impl From<EigenlayerError> for RunnerError {
         RunnerError::Eigenlayer(err.to_string())
     }
 }
-
-// Convenience type alias
-pub type Result<T> = std::result::Result<T, EigenlayerError>;

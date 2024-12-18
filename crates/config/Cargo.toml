@@ -19,17 +19,17 @@ url = { workspace = true, features = ["serde"] }
 
 # Optional dependencies (feature-gated)
 libp2p = { workspace = true, optional = true }
-alloy-primitives = { workspace = true, optional = true }
+alloy-primitives = { workspace = true, optional = true, features = ["serde"] }
 
 # Keystore
 gadget-keystore = { workspace = true, optional = true }
 
 [features]
 default = ["std", "tangle"]
-std = ["gadget-std/std", "serde_json"]
+std = ["gadget-std/std", "serde_json/std", "gadget-keystore?/std"]
 
 # Core feature groups
-keystore = ["gadget-keystore/default"]
+keystore = ["gadget-keystore"]
 networking = ["dep:libp2p"]
 
 # Protocol-specific features

@@ -24,7 +24,7 @@ std = [
 #    "gadget-runner-tangle?/std"
 ]
 no-std = [
-    "gadget-runner-core/no-std",
+#    "gadget-runner-core/no-std",
 #    "gadget-runner-eigenlayer?/no-std",
 #    "gadget-runner-symbiotic?/no-std",
 #    "gadget-runner-tangle?/no-std"

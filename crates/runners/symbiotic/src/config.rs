@@ -1,3 +1,4 @@
+use crate::error::SymbioticError;
 use alloy_network::EthereumWallet;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_runner_core::config::BlueprintConfig;
@@ -32,7 +33,7 @@ impl BlueprintConfig for SymbioticConfig {
             .call()
             .await
             .map(|r| r._0)
-            .map_err(|e| Error::Symbiotic(e.to_string()))?;
+            .map_err(|e| SymbioticError::Registration(e.to_string()).into())?;
 
         Ok(!is_registered)
     }
@@ -56,9 +57,11 @@ impl BlueprintConfig for SymbioticConfig {
         let result = operator_registry
             .registerOperator()
             .send()
-            .await?
+            .await
+            .map_err(|e| SymbioticError::Registration(e.to_string()).into())?
             .get_receipt()
-            .await?;
+            .await
+            .map_err(|e| SymbioticError::Registration(e.to_string()).into())?;
 
         if result.status() {
             gadget_logging::info!("Operator registered successfully");

@@ -1,16 +1,9 @@
-use std::str::FromStr;
-
-use alloy_network::{EthereumWallet, TransactionBuilder};
 use alloy_primitives::{hex, Address, Bytes, FixedBytes, U256};
-use alloy_rpc_types::BlockNumberOrTag;
-use alloy_signer::Signer;
-use alloy_signer_local::PrivateKeySigner;
+
 use eigensdk::client_avsregistry::writer::AvsRegistryChainWriter;
 use eigensdk::client_elcontracts::{reader::ELChainReader, writer::ELChainWriter};
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
-use eigensdk::utils::ecdsastakeregistry::ECDSAStakeRegistry;
-use eigensdk::utils::get_provider;
 
 use crate::error::EigenlayerError;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};

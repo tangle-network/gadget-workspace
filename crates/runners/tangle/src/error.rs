@@ -27,6 +27,3 @@ impl From<TangleError> for RunnerError {
         RunnerError::Tangle(err.to_string())
     }
 }
-
-// Convenience type alias
-pub type Result<T> = std::result::Result<T, TangleError>;

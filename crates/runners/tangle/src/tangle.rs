@@ -1,9 +1,10 @@
+use gadget_clients::tangle::runtime::TangleClient;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::{RunnerError as Error, RunnerError};
-use sp_core::Pair;
+use gadget_std::string::ToString;
+use subxt::ext::futures::future::select_ok;
 use subxt::tx;
-use subxt::tx::Signer;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets as TanglePriceTargets;
@@ -62,7 +63,7 @@ pub async fn requires_registration_impl(env: &GadgetConfiguration) -> Result<boo
     };
 
     // Check if the operator is already registered
-    let client = env.client().await?;
+    let client = get_client(env.ws_rpc_endpoint.as_str(), env.http_rpc_endpoint.as_str()).await?;
     let signer = env.first_sr25519_signer()?;
     let account_id = signer.account_id();
 
@@ -70,9 +71,11 @@ pub async fn requires_registration_impl(env: &GadgetConfiguration) -> Result<boo
     let operator_profile = client
         .storage()
         .at_latest()
-        .await?
+        .await
+        .map_err(Into::into)?
         .fetch(&operator_profile_query)
-        .await?;
+        .await
+        .map_err(Into::into)?;
     let is_registered = operator_profile
         .map(|p| p.blueprints.0.iter().any(|&id| id == blueprint_id))
         .unwrap_or(false);
@@ -85,7 +88,7 @@ pub async fn register_impl(
     registration_args: RegistrationArgs,
     env: &GadgetConfiguration,
 ) -> Result<(), RunnerError> {
-    let client = env.client().await?;
+    let client = get_client(env.ws_rpc_endpoint.as_str(), env.http_rpc_endpoint.as_str()).await?;
     let signer = env.first_sr25519_signer()?;
     let ecdsa_pair = env.first_ecdsa_signer()?;
 
@@ -104,9 +107,11 @@ pub async fn register_impl(
     let operator_active = client
         .storage()
         .at_latest()
-        .await?
+        .await
+        .map_err(Into::into)?
         .fetch(&operator_active_query)
-        .await?;
+        .await
+        .map_err(Into::into)?;
     if operator_active.is_none() {
         return Err(RunnerError::NotActiveOperator);
     }
@@ -124,7 +129,20 @@ pub async fn register_impl(
     );
 
     // send the tx to the tangle and exit.
-    let result = tx::tangle::send(&client, &signer, &xt).await?;
+    let result = tx::send(&client, &signer, &xt).await?;
     gadget_logging::info!("Registered operator with hash: {:?}", result);
     Ok(())
+}
+
+async fn get_client(ws_url: &str, http_url: &str) -> Result<TangleClient, RunnerError> {
+    let task0 = TangleClient::from_url(ws_url);
+    let task1 = TangleClient::from_url(http_url);
+    Ok(select_ok([Box::pin(task0), Box::pin(task1)])
+        .await
+        .map_err(|e| {
+            <crate::error::TangleError as Into<RunnerError>>::into(
+                crate::error::TangleError::Network(e.to_string()),
+            )
+        })?
+        .0)
 }

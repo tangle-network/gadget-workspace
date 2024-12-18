@@ -7,12 +7,10 @@ use alloy_rpc_types::BlockNumberOrTag;
 use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 
-// Eigenlayer SDK
 use eigensdk::client_elcontracts::{reader::ELChainReader, writer::ELChainWriter};
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
 use eigensdk::utils::ecdsastakeregistry::{ECDSAStakeRegistry, ISignatureUtils};
-use eigensdk::utils::get_provider;
 
 use crate::error::EigenlayerError;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};

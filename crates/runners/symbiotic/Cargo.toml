@@ -4,12 +4,24 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-trait = { workspace = true }
-alloy-network = { workspace = true }
-gadget-config = { workspace = true, features = ["std", "symbiotic", "keystore"] }
-gadget-runner-core = { workspace = true, features = ["symbiotic"] }
+async-trait = { workspace = true, default-features = false }
+alloy-network = { workspace = true, default-features = false }
+gadget-config = { workspace = true, default-features = false, features = ["symbiotic"] }
+gadget-runner-core = { workspace = true, default-features = false, features = ["symbiotic"] }
 symbiotic-rs = { workspace = true }
-gadget-utils = { workspace = true, features = ["evm"] }
-gadget-logging = { workspace = true }
-gadget-keystore = { workspace = true, features = ["ecdsa"] }
-thiserror = { workspace = true }
+gadget-utils = { workspace = true, default-features = false, features = ["evm"] }
+gadget-logging = { workspace = true, default-features = false }
+gadget-keystore = { workspace = true, default-features = false, optional = true, features = ["ecdsa"] }
+thiserror = { workspace = true, default-features = false }
+
+[features]
+default = ["std"]
+
+std = [
+    "gadget-runner-core/std",
+    "gadget-config/std",
+    "gadget-logging/std",
+    "gadget-utils/std",
+    "gadget-keystore?/std",
+]
+keystore = ["gadget-keystore", "gadget-config/keystore"]

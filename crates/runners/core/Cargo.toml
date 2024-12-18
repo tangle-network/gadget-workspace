@@ -8,7 +8,7 @@ edition = "2021"
 gadget-config = { workspace = true }
 gadget-utils = { workspace = true }
 async-trait = { workspace = true }
-futures = { workspace = true }
+futures = { workspace = true, features = ["alloc"] }
 tokio = { workspace = true, features = ["sync"] }
 
 # Error
@@ -18,11 +18,10 @@ thiserror = { workspace = true }
 gadget-logging = { workspace = true }
 
 [features]
-default = ["std"]
+default = ["std", "tangle"]
 
 std = ["gadget-config/std", "gadget-utils/std", "gadget-logging/std"]
-no-std = ["futures/alloc"]
 
-eigenlayer = []
-symbiotic = []
-tangle = []
+eigenlayer = ["gadget-config/eigenlayer", "gadget-utils/eigenlayer"]
+symbiotic = ["gadget-config/symbiotic"]
+tangle = ["gadget-config/tangle", "gadget-utils/tangle"]

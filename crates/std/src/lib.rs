@@ -13,13 +13,11 @@ pub use core::*;
 #[cfg(not(feature = "std"))]
 pub mod fmt {
     pub use alloc::fmt::*;
-    // pub use core::fmt::*;
 }
 
 #[cfg(not(feature = "std"))]
 pub mod borrow {
     pub use alloc::borrow::*;
-    // pub use core::borrow::*;
 }
 
 #[cfg(not(feature = "std"))]

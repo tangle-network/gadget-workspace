@@ -1,10 +1,10 @@
+use crate::error::TangleError;
 use gadget_clients::tangle::runtime::TangleClient;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::{RunnerError as Error, RunnerError};
 use gadget_std::string::ToString;
 use subxt::ext::futures::future::select_ok;
-use subxt::tx;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets as TanglePriceTargets;
@@ -121,7 +121,7 @@ pub async fn register_impl(
     let xt = api::tx().services().register(
         blueprint_id,
         services::OperatorPreferences {
-            key: ecdsa_pair.signer().public().0,
+            key: ecdsa_pair.pair.signer().public().0,
             price_targets: price_targets.clone().0,
         },
         registration_args,
@@ -129,7 +129,9 @@ pub async fn register_impl(
     );
 
     // send the tx to the tangle and exit.
-    let result = tx::send(&client, &signer, &xt).await?;
+    let result = gadget_utils::gadget_utils_tangle::tx::send(&client, &signer, &xt)
+        .await
+        .map_err(|e| TangleError::Network(e.to_string()).into())?;
     gadget_logging::info!("Registered operator with hash: {:?}", result);
     Ok(())
 }

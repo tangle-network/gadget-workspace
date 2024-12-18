@@ -5,7 +5,7 @@ use core::pin::Pin;
 
 use futures::Future;
 use gadget_config::GadgetConfiguration;
-use gadget_utils::core::handler::InitializableEventHandler;
+use gadget_event_listeners::core::InitializableEventHandler;
 use tokio::sync::oneshot;
 
 #[async_trait::async_trait]

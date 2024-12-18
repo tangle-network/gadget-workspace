@@ -15,6 +15,9 @@ pub enum TangleError {
     #[error("Network error: {0}")]
     Network(String),
 
+    #[error("Keystore error: {0}")]
+    Keystore(String),
+
     #[error("Validation error: {0}")]
     Validation(String),
 

@@ -10,7 +10,7 @@ gadget-config = { workspace = true, features = ["std", "tangle", "keystore"] }
 gadget-logging = { workspace = true }
 gadget-utils = { workspace = true, features = ["tangle"] }
 thiserror = { workspace = true }
-gadget-keystore = { workspace = true, optional = true, features = ["ecdsa", "bls"] }
+gadget-keystore = { workspace = true, features = ["ecdsa", "bls"] }
 sp-core = { workspace = true, default-features = false, features = ["full_crypto"] }
 gadget-clients = { workspace = true, features = ["tangle"] }
 gadget-std = { workspace = true, default-features = false }
@@ -26,10 +26,7 @@ std = [
     "gadget-logging/std",
     "gadget-utils/std",
     "gadget-clients/std",
-    "gadget-keystore?/std",
+    "gadget-keystore/std",
+    "gadget-config/keystore",
     "sp-core/std",
 ]
-
-bls = ["keystore", "gadget-keystore/bn254"]
-ecdsa = ["keystore", "gadget-keystore/bn254", "gadget-keystore/ecdsa"]
-keystore = ["gadget-keystore", "gadget-config/keystore"]

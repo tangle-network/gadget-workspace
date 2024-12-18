@@ -1,10 +1,14 @@
 use crate::error::TangleError;
 use gadget_clients::tangle::runtime::TangleClient;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
+use gadget_keystore::backends::tangle::{TangleBackend, TanglePairSigner};
+use gadget_keystore::{Keystore, KeystoreConfig};
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::{RunnerError as Error, RunnerError};
 use gadget_std::string::ToString;
+use sp_core::Pair;
 use subxt::ext::futures::future::select_ok;
+use subxt::PolkadotConfig;
 use tangle_subxt::tangle_testnet_runtime::api;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services;
 use tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::PriceTargets as TanglePriceTargets;
@@ -64,7 +68,22 @@ pub async fn requires_registration_impl(env: &GadgetConfiguration) -> Result<boo
 
     // Check if the operator is already registered
     let client = get_client(env.ws_rpc_endpoint.as_str(), env.http_rpc_endpoint.as_str()).await?;
-    let signer = env.first_sr25519_signer()?;
+
+    // TODO: Improve key fetching logic
+    let keystore_path = env.clone().keystore_uri;
+    let keystore_config = KeystoreConfig::new()
+        .in_memory(false)
+        .fs_root(keystore_path);
+    let keystore = Keystore::new(keystore_config).unwrap();
+
+    let sr25519_key = keystore.iter_sr25519().next().unwrap();
+    let sr25519_pair = keystore
+        .expose_sr25519_secret(&sr25519_key)
+        .unwrap()
+        .unwrap();
+    let signer: subxt::tx::PairSigner<PolkadotConfig, sp_core::sr25519::Pair> =
+        subxt::tx::PairSigner::new(sr25519_pair);
+
     let account_id = signer.account_id();
 
     let operator_profile_query = api::storage().services().operators_profile(account_id);
@@ -72,10 +91,12 @@ pub async fn requires_registration_impl(env: &GadgetConfiguration) -> Result<boo
         .storage()
         .at_latest()
         .await
-        .map_err(Into::into)?
+        .map_err(|e| <TangleError as Into<RunnerError>>::into(TangleError::Network(e.to_string())))?
         .fetch(&operator_profile_query)
         .await
-        .map_err(Into::into)?;
+        .map_err(|e| {
+            <TangleError as Into<RunnerError>>::into(TangleError::Network(e.to_string()))
+        })?;
     let is_registered = operator_profile
         .map(|p| p.blueprints.0.iter().any(|&id| id == blueprint_id))
         .unwrap_or(false);
@@ -89,8 +110,26 @@ pub async fn register_impl(
     env: &GadgetConfiguration,
 ) -> Result<(), RunnerError> {
     let client = get_client(env.ws_rpc_endpoint.as_str(), env.http_rpc_endpoint.as_str()).await?;
-    let signer = env.first_sr25519_signer()?;
-    let ecdsa_pair = env.first_ecdsa_signer()?;
+
+    // TODO: Improve key fetching logic
+    let keystore_path = env.clone().keystore_uri;
+    let keystore_config = KeystoreConfig::new()
+        .in_memory(false)
+        .fs_root(keystore_path);
+    let keystore = Keystore::new(keystore_config).unwrap();
+
+    let sr25519_key = keystore.iter_sr25519().next().unwrap();
+    let sr25519_pair = keystore
+        .expose_sr25519_secret(&sr25519_key)
+        .unwrap()
+        .unwrap();
+    let signer = subxt::tx::PairSigner::new(sr25519_pair);
+
+    let ecdsa_key = keystore.iter_ecdsa().next().unwrap();
+    let ecdsa_pair = keystore.expose_ecdsa_secret(&ecdsa_key).unwrap().unwrap();
+    let ecdsa_pair = TanglePairSigner {
+        pair: subxt::tx::PairSigner::new(ecdsa_pair),
+    };
 
     // Parse Tangle protocol specific settings
     let ProtocolSettings::Tangle(blueprint_settings) = env.protocol_settings else {
@@ -108,10 +147,12 @@ pub async fn register_impl(
         .storage()
         .at_latest()
         .await
-        .map_err(Into::into)?
+        .map_err(|e| <TangleError as Into<RunnerError>>::into(TangleError::Network(e.to_string())))?
         .fetch(&operator_active_query)
         .await
-        .map_err(Into::into)?;
+        .map_err(|e| {
+            <TangleError as Into<RunnerError>>::into(TangleError::Network(e.to_string()))
+        })?;
     if operator_active.is_none() {
         return Err(RunnerError::NotActiveOperator);
     }
@@ -131,7 +172,9 @@ pub async fn register_impl(
     // send the tx to the tangle and exit.
     let result = gadget_utils::gadget_utils_tangle::tx::send(&client, &signer, &xt)
         .await
-        .map_err(|e| TangleError::Network(e.to_string()).into())?;
+        .map_err(|e| {
+            <TangleError as Into<RunnerError>>::into(TangleError::Network(e.to_string()))
+        })?;
     gadget_logging::info!("Registered operator with hash: {:?}", result);
     Ok(())
 }

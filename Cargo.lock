@@ -5112,6 +5112,8 @@ name = "gadget-runner-symbiotic"
 version = "0.1.0"
 dependencies = [
  "alloy-network 0.5.4",
+ "alloy-primitives",
+ "alloy-signer-local",
  "async-trait",
  "gadget-config",
  "gadget-keystore",

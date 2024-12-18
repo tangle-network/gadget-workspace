@@ -179,7 +179,7 @@ pub async fn register_impl(
     Ok(())
 }
 
-async fn get_client(ws_url: &str, http_url: &str) -> Result<TangleClient, RunnerError> {
+pub(crate) async fn get_client(ws_url: &str, http_url: &str) -> Result<TangleClient, RunnerError> {
     let task0 = TangleClient::from_url(ws_url);
     let task1 = TangleClient::from_url(http_url);
     Ok(select_ok([Box::pin(task0), Box::pin(task1)])

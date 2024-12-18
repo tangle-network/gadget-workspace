@@ -34,3 +34,6 @@ std = [
 bls = ["keystore", "gadget-keystore/bn254"]
 ecdsa = ["keystore", "gadget-keystore/bn254", "gadget-keystore/ecdsa"]
 keystore = ["gadget-keystore", "gadget-config/keystore"]
+
+[dev-dependencies]
+rand = { workspace = true, default-features = false, features = ["std_rng"] }

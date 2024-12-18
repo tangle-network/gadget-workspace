@@ -27,3 +27,6 @@ std = [
     "gadget-keystore/std",
     "gadget-config/keystore"
 ]
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -10,7 +10,7 @@ gadget-config = { workspace = true, features = ["std", "tangle", "keystore"] }
 gadget-logging = { workspace = true }
 gadget-utils = { workspace = true, features = ["tangle"] }
 thiserror = { workspace = true }
-gadget-keystore = { workspace = true, features = ["ecdsa", "bls"] }
+gadget-keystore = { workspace = true, features = ["tangle-full"] }
 sp-core = { workspace = true, default-features = false, features = ["full_crypto"] }
 gadget-clients = { workspace = true, features = ["tangle"] }
 gadget-std = { workspace = true, default-features = false }
@@ -30,3 +30,6 @@ std = [
     "gadget-config/keystore",
     "sp-core/std",
 ]
+
+[dev-dependencies]
+tokio = { workspace = true }

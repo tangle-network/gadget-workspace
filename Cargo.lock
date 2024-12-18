@@ -5104,6 +5104,7 @@ dependencies = [
  "gadget-logging",
  "gadget-runner-core",
  "gadget-utils",
+ "rand",
  "thiserror 2.0.7",
 ]
 
@@ -5122,6 +5123,7 @@ dependencies = [
  "gadget-utils",
  "symbiotic-rs",
  "thiserror 2.0.7",
+ "tokio",
 ]
 
 [[package]]
@@ -5140,6 +5142,7 @@ dependencies = [
  "subxt",
  "tangle-subxt",
  "thiserror 2.0.7",
+ "tokio",
 ]
 
 [[package]]

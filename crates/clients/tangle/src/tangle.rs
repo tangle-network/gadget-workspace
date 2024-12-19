@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::error::Result;
 use gadget_config::GadgetConfiguration;
 use subxt::utils::AccountId32;

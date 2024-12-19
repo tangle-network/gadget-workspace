@@ -46,10 +46,10 @@ where
         let call = api::storage().services().blueprints(blueprint_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
-        if ret.is_none() {
-            Ok(None)
+        if let Some(ret) = ret {
+            Ok(Some(ret.1))
         } else {
-            Ok(Some(ret.unwrap().1))
+            Ok(None)
         }
     }
 
@@ -87,10 +87,10 @@ where
         let call = api::storage().services().blueprints(blueprint_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
-        if ret.is_none() {
-            Err(TangleClientError::Other("Blueprint not found".to_string()))
+        if let Some(bp) = ret {
+            Ok(bp.1)
         } else {
-            Ok(ret.unwrap().1)
+            Err(TangleClientError::Other("Blueprint not found".to_string()))
         }
     }
 
@@ -103,10 +103,10 @@ where
         let call = api::storage().services().blueprints(blueprint_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
-        if ret.is_none() {
-            Err(TangleClientError::Other("Blueprint not found".to_string()))
+        if let Some(bp) = ret {
+            Ok(bp.0)
         } else {
-            Ok(ret.unwrap().0)
+            Err(TangleClientError::Other("Blueprint not found".to_string()))
         }
     }
 
@@ -119,10 +119,10 @@ where
         let call = api::storage().services().instances(service_id);
         let at = BlockRef::from_hash(H256::from_slice(&at));
         let ret = self.rpc_client.storage().at(at).fetch(&call).await?;
-        if ret.is_none() {
-            Ok(vec![])
+        if let Some(operators) = ret {
+            Ok(operators.operators.0)
         } else {
-            Ok(ret.unwrap().operators.0)
+            Ok(vec![])
         }
     }
 }

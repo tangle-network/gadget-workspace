@@ -4613,6 +4613,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gadget-client-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "auto_impl",
+ "gadget-std",
+ "thiserror 2.0.7",
+]
+
+[[package]]
 name = "gadget-client-eigenlayer"
 version = "0.1.0"
 dependencies = [
@@ -4688,7 +4698,11 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "auto_impl",
+ "gadget-client-core",
  "gadget-config",
+ "gadget-crypto-sp-core",
+ "gadget-keystore",
+ "gadget-logging",
  "gadget-std",
  "gadget-tokio-std",
  "serde",
@@ -4705,11 +4719,11 @@ dependencies = [
 name = "gadget-clients"
 version = "0.1.0"
 dependencies = [
+ "gadget-client-core",
  "gadget-client-eigenlayer",
  "gadget-client-evm",
  "gadget-client-networking",
  "gadget-client-tangle",
- "thiserror 2.0.7",
 ]
 
 [[package]]
@@ -4737,10 +4751,9 @@ dependencies = [
  "gadget-client-eigenlayer",
  "gadget-client-evm",
  "gadget-client-networking",
- "gadget-client-tangle",
+ "gadget-clients",
  "gadget-keystore",
  "gadget-std",
- "subxt",
 ]
 
 [[package]]

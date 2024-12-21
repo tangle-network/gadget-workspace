@@ -2,6 +2,7 @@ use gadget_std::vec::Vec;
 use sp_core::crypto::DeriveError;
 use sp_core::crypto::SecretStringError;
 use sp_core::DeriveJunction;
+use subxt::ext::sp_core;
 use subxt::PolkadotConfig;
 use subxt_core::{
     tx::signer::{PairSigner, Signer},
@@ -17,8 +18,9 @@ impl<Pair: sp_core::Pair> sp_core::crypto::CryptoType for TanglePairSigner<Pair>
     type Pair = Pair;
 }
 
-impl<Pair: sp_core::Pair> TanglePairSigner<Pair>
+impl<Pair> TanglePairSigner<Pair>
 where
+    Pair: sp_core::Pair + subxt::ext::sp_core::Pair,
     <Pair as sp_core::Pair>::Signature: Into<MultiSignature>,
     subxt::ext::sp_runtime::MultiSigner: From<<Pair as sp_core::Pair>::Public>,
 {
@@ -39,7 +41,7 @@ where
 
 impl<Pair> Signer<PolkadotConfig> for TanglePairSigner<Pair>
 where
-    Pair: sp_core::Pair,
+    Pair: sp_core::Pair + subxt::ext::sp_core::Pair,
     Pair::Signature: Into<MultiSignature>,
 {
     fn account_id(&self) -> AccountId32 {
@@ -55,8 +57,9 @@ where
     }
 }
 
-impl<Pair: sp_core::Pair> sp_core::Pair for TanglePairSigner<Pair>
+impl<Pair> sp_core::Pair for TanglePairSigner<Pair>
 where
+    Pair: sp_core::Pair + subxt::ext::sp_core::Pair,
     <Pair as sp_core::Pair>::Signature: Into<subxt::utils::MultiSignature>,
     subxt::ext::sp_runtime::MultiSigner: From<<Pair as sp_core::Pair>::Public>,
 {

@@ -1,0 +1,75 @@
+[package]
+name = "cargo-tangle"
+version = "0.4.0"
+description = "A command-line tool to create and deploy blueprints on Tangle Network"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[features]
+default = ["tangle"]
+
+# Main features
+tangle = [
+    "tangle-subxt/std",
+    "subxt/native",
+    "gadget-clients/tangle",
+    "gadget-keystore/tangle",
+    "evm",
+]
+
+# Protocol features
+eigenlayer = [
+    "gadget-clients/eigenlayer",
+    "gadget-keystore/eigenlayer",
+    "evm",
+]
+
+# Core functionality features
+evm = [
+    "alloy-json-abi",
+    "alloy-provider",
+    "alloy-network",
+    "alloy-rpc-types",
+    "alloy-signer-local",
+]
+
+[dependencies]
+# Core CLI dependencies - always included
+anyhow = { workspace = true, default-features = true }
+clap = { workspace = true, default-features = true, features = ["derive", "wrap_help"] }
+clap-cargo = { workspace = true, default-features = true }
+cargo-generate = { workspace = true, default-features = false, features = ["vendored-openssl", "vendored-libgit2"] }
+cargo_metadata = { workspace = true, default-features = true }
+escargot = { workspace = true, default-features = true }
+tracing-subscriber = { workspace = true, default-features = true, features = ["env-filter", "fmt", "ansi"] }
+color-eyre = { workspace = true, default-features = true }
+serde_json = { workspace = true, default-features = true }
+tokio = { workspace = true, default-features = true, features = ["full"] }
+hex = { workspace = true, default-features = true }
+thiserror = { workspace = true, default-features = true }
+
+# Gadget dependencies
+gadget-logging = { workspace = true, default-features = true }
+
+# Optional client dependencies
+gadget-clients = { workspace = true, default-features = true, optional = true }
+gadget-crypto = { workspace = true, default-features = true }
+gadget-keystore = { workspace = true, default-features = true, optional = true }
+
+# Optional dependencies based on features
+tangle-subxt = { workspace = true, default-features = true, features = ["std"], optional = true }
+subxt = { workspace = true, default-features = true, features = ["substrate-compat"], optional = true }
+
+# EVM dependencies
+alloy-json-abi = { workspace = true, default-features = true, optional = true }
+alloy-provider = { workspace = true, default-features = true, optional = true }
+alloy-network = { workspace = true, default-features = true, optional = true }
+alloy-rpc-types = { workspace = true, default-features = true, optional = true }
+alloy-signer-local = { workspace = true, default-features = true, optional = true }
+
+
+[dev-dependencies]
+tempfile = "3.10.1"

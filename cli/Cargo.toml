@@ -52,6 +52,7 @@ hex = { workspace = true, default-features = true }
 thiserror = { workspace = true, default-features = true }
 
 # Gadget dependencies
+gadget-blueprint-proc-macro-core = { workspace = true, default-features = true }
 gadget-std = { workspace = true, default-features = true }
 gadget-logging = { workspace = true, default-features = true }
 gadget-utils-tangle = { workspace = true, default-features = true }

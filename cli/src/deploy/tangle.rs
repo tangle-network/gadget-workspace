@@ -75,9 +75,15 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
 
     let package = find_package(&metadata, pkg_name)?.clone();
     let package_clone = &package.clone();
-    let mut blueprint = load_blueprint_metadata(&package)?;
+    let blueprint = load_blueprint_metadata(&package)?;
     build_contracts_if_needed(package_clone, &blueprint).context("Building contracts")?;
-    deploy_contracts_to_tangle(rpc_url.as_ref(), package_clone, &mut blueprint, signer_evm).await?;
+    deploy_contracts_to_tangle(
+        rpc_url.as_ref(),
+        package_clone,
+        &mut blueprint.clone(),
+        signer_evm,
+    )
+    .await?;
     bake_blueprint(blueprint)
 }
 

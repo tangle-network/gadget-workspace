@@ -2599,6 +2599,7 @@ dependencies = [
  "clap-cargo",
  "color-eyre",
  "escargot",
+ "gadget-blueprint-proc-macro-core",
  "gadget-clients",
  "gadget-crypto",
  "gadget-crypto-core",

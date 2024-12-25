@@ -73,9 +73,9 @@ macro_rules! define_bls_key {
                 /// key type
                 pub struct [<W3f $ty>];
 
-                super::impl_w3f_serde!([<W3f $ty Public>], PublicKey<[<Tiny $ty:upper>]>);
-                super::impl_w3f_serde!([<W3f $ty Secret>], SecretKey<[<Tiny $ty:upper>]>);
-                super::impl_w3f_serde!([<W3f $ty Signature>], Signature<[<Tiny $ty:upper>]>);
+                impl_w3f_serde!([<W3f $ty Public>], PublicKey<[<Tiny $ty:upper>]>);
+                impl_w3f_serde!([<W3f $ty Secret>], SecretKey<[<Tiny $ty:upper>]>);
+                impl_w3f_serde!([<W3f $ty Signature>], Signature<[<Tiny $ty:upper>]>);
 
                 impl KeyType for [<W3f $ty>] {
                     type Public = [<W3f $ty Public>];

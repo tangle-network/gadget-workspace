@@ -2601,8 +2601,11 @@ dependencies = [
  "escargot",
  "gadget-clients",
  "gadget-crypto",
+ "gadget-crypto-core",
  "gadget-keystore",
  "gadget-logging",
+ "gadget-std",
+ "gadget-utils-tangle",
  "hex",
  "serde_json",
  "subxt",
@@ -2611,6 +2614,7 @@ dependencies = [
  "thiserror 2.0.7",
  "tokio",
  "tracing-subscriber 0.3.19",
+ "w3f-bls 0.1.8 (git+https://github.com/drewstone/bls.git?branch=drew%2Fbump-ark-versions)",
 ]
 
 [[package]]
@@ -5084,6 +5088,7 @@ dependencies = [
 name = "gadget-crypto-core"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "gadget-std",
  "serde",
  "thiserror 2.0.7",

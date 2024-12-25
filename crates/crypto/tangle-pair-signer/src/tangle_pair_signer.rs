@@ -10,7 +10,7 @@ use subxt_core::{
 
 #[derive(Clone, Debug)]
 pub struct TanglePairSigner<Pair> {
-    pub(crate) pair: subxt::tx::PairSigner<PolkadotConfig, Pair>,
+    pub pair: subxt::tx::PairSigner<PolkadotConfig, Pair>,
 }
 
 impl<Pair: sp_core::Pair> sp_core::crypto::CryptoType for TanglePairSigner<Pair> {

@@ -3,7 +3,7 @@ use alloy_provider::{Provider, WsConnect};
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::eyre::{self, Context, ContextCompat, Result};
 use gadget_blueprint_proc_macro_core::{BlueprintManager, ServiceBlueprint};
-use gadget_sdk::clients::tangle::runtime::TangleConfig;
+use gadget_clients::tangle::runtime::TangleConfig;
 use gadget_std::fmt::Debug;
 use gadget_std::path::PathBuf;
 use tangle_subxt::subxt;
@@ -78,7 +78,6 @@ pub async fn generate_service_blueprint<P: Into<PathBuf>, T: AsRef<str>>(
     let mut blueprint = load_blueprint_metadata(&package)?;
     build_contracts_if_needed(package_clone, &blueprint).context("Building contracts")?;
     deploy_contracts_to_tangle(rpc_url.as_ref(), package_clone, &mut blueprint, signer_evm).await?;
-
     bake_blueprint(blueprint)
 }
 
@@ -100,7 +99,7 @@ pub async fn deploy_to_tangle(
     let signer = if let Some(signer) = signer {
         signer
     } else {
-        crate::signer::load_signer_from_env()?
+        crate::signer::load_signer_from_env()?.pair
     };
 
     let my_account_id = signer.account_id();
@@ -113,7 +112,7 @@ pub async fn deploy_to_tangle(
         .sign_and_submit_then_watch_default(&create_blueprint_tx, &signer)
         .await?;
     let result = if cfg!(test) {
-        use gadget_sdk::tx::tangle::TxProgressExt;
+        use gadget_utils_tangle::TxProgressExt;
         progress.wait_for_in_block_success().await?
     } else {
         println!("Waiting for the transaction to be finalized...");
@@ -167,10 +166,10 @@ pub fn load_blueprint_metadata(
     Ok(blueprint)
 }
 
-async fn deploy_contracts_to_tangle(
+async fn deploy_contracts_to_tangle<'a>(
     rpc_url: &str,
     package: &cargo_metadata::Package,
-    blueprint: &mut ServiceBlueprint<'_>,
+    blueprint: &'a mut ServiceBlueprint<'a>,
     signer_evm: Option<PrivateKeySigner>,
 ) -> Result<()> {
     enum ContractKind {

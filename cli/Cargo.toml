@@ -52,12 +52,18 @@ hex = { workspace = true, default-features = true }
 thiserror = { workspace = true, default-features = true }
 
 # Gadget dependencies
+gadget-std = { workspace = true, default-features = true }
 gadget-logging = { workspace = true, default-features = true }
+gadget-utils-tangle = { workspace = true, default-features = true }
 
 # Optional client dependencies
 gadget-clients = { workspace = true, default-features = true, optional = true }
 gadget-crypto = { workspace = true, default-features = true }
+gadget-crypto-core = { workspace = true, default-features = true, features = ["clap"] }
 gadget-keystore = { workspace = true, default-features = true, optional = true }
+
+# Optional crypto dependencies
+w3f-bls = { workspace = true, default-features = true, optional = true }
 
 # Optional dependencies based on features
 tangle-subxt = { workspace = true, default-features = true, features = ["std"], optional = true }

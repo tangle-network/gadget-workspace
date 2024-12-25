@@ -15,7 +15,7 @@ macro_rules! impl_w3f_serde {
 
         impl PartialOrd for $name {
             fn partial_cmp(&self, other: &Self) -> Option<gadget_std::cmp::Ordering> {
-                to_bytes(self.0.clone()).partial_cmp(&to_bytes(other.0.clone()))
+                Some(self.cmp(other))
             }
         }
 
@@ -57,8 +57,6 @@ macro_rules! impl_w3f_serde {
         }
     };
 }
-
-pub(self) use impl_w3f_serde;
 
 macro_rules! define_bls_key {
     ($($ty:ident),+) => {

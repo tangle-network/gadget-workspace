@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+futures = { workspace = true, optional = true }
+gadget-logging.workspace = true
 gadget-std = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
@@ -13,6 +15,9 @@ tokio = { workspace = true }
 default = ["std"]
 std = [
     "gadget-std/std",
+    "gadget-logging/std",
     "tokio/full",
 ]
-testing = []
+testing = [
+    "dep:futures"
+]

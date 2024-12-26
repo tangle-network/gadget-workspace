@@ -1,5 +1,6 @@
 use alloy_provider::network::TransactionBuilder;
 use alloy_provider::{Provider, WsConnect};
+use alloy_rpc_types_eth::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use color_eyre::eyre::{self, Context, ContextCompat, Result};
 use gadget_blueprint_proc_macro_core::{BlueprintManager, ServiceBlueprint};
@@ -246,7 +247,7 @@ async fn deploy_contracts_to_tangle<'a>(
             eprintln!("Contract {name} does not have deployed bytecode! Skipping ...");
             continue;
         };
-        let tx = alloy_rpc_types::TransactionRequest::default().with_deploy_code(bytecode);
+        let tx = TransactionRequest::default().with_deploy_code(bytecode);
         // Deploy the contract.
         let receipt = provider.send_transaction(tx).await?.get_receipt().await?;
         // Check the receipt status.

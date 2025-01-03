@@ -1,4 +1,5 @@
-use crate::job::{declared_params_to_field_types, EventListenerArgs};
+use crate::job::args::EventListenerArgs;
+use crate::job::declared_params_to_field_types;
 use crate::shared::{get_non_job_arguments, get_return_type_wrapper};
 use indexmap::IndexMap;
 use proc_macro2::{Span, TokenStream};
@@ -22,9 +23,11 @@ pub(crate) fn generate_tangle_specific_impl(
         let _ = non_job_param_map.shift_remove_index(0);
     }
 
+    let env_type = quote! { ::gadget_macros::ext::config::GadgetConfiguration };
+
     // Push the expected types
     new_function_signature.push(quote! {
-        env: &::gadget_macros::ext::config::GadgetConfiguration,
+        env: &#env_type,
     });
 
     constructor_args.push(quote! {
@@ -46,6 +49,7 @@ pub(crate) fn generate_tangle_specific_impl(
     let struct_name_as_literal = struct_name.to_string();
 
     Ok(quote! {
+        // TODO: No Box<dyn Error>
         impl #struct_name {
             /// Create a new
             #[doc = "[`"]
@@ -57,10 +61,26 @@ pub(crate) fn generate_tangle_specific_impl(
             /// - The client fails to connect
             /// - The signer is not found
             /// - The service ID is not found.
-            pub async fn new(#(#new_function_signature)*) -> Result<Self, ::gadget_macros::ext::config::Error> {
-                let client = env.client().await?;
-                let signer = env.first_sr25519_signer()?;
-                let service_id = env.service_id()?;
+            pub async fn new(#(#new_function_signature)*) -> Result<Self, Box<dyn core::error::Error>> {
+                use gadget_macros::ext::keystore::backends::tangle::TangleBackend as _;
+
+                let client =
+                    <#env_type as ::gadget_macros::ext::contexts::tangle::TangleClientContext>::tangle_client(env)
+                        .await
+                        .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?;
+
+                let keystore = <#env_type as ::gadget_macros::ext::contexts::keystore::KeystoreContext>::keystore(env);
+                let public = keystore.iter_sr25519().next().ok_or_else(|| Into::<Box<dyn core::error::Error>>::into(::gadget_macros::ext::config::Error::NoSr25519Keypair))?;
+                let pair = keystore.expose_sr25519_secret(&public)
+                    .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?
+                    .ok_or_else(|| Into::<Box<dyn core::error::Error>>::into(::gadget_macros::ext::config::Error::NoSr25519Keypair))?;
+                let signer = gadget_macros::ext::crypto::tangle_pair_signer::TanglePairSigner::new(pair);
+
+                let service_id = env.protocol_settings
+                    .tangle()
+                    .map_err(|e| Into::<Box<dyn core::error::Error>>::into(e))?
+                    .service_id
+                    .ok_or_else(|| Into::<Box<dyn core::error::Error>>::into(::gadget_macros::ext::config::Error::MissingServiceId))?;
 
                 Ok(Self {
                     #(#constructor_args)*
@@ -69,7 +89,7 @@ pub(crate) fn generate_tangle_specific_impl(
         }
 
         #[automatically_derived]
-        impl ::gadget_macros::ext::event_listeners::core::markers::IsTangle for #struct_name {}
+        impl ::gadget_macros::ext::event_listeners::core::marker::IsTangle for #struct_name {}
     })
 }
 
@@ -98,7 +118,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
     let call_id_injector = quote! {
         let mut #injected_context_var_name = #injected_context;
         if let Some(call_id) = tangle_event.call_id {
-            ::gadget_macros::ext::contexts::tangle::TangleClientContext::set_call_id(&mut #injected_context_var_name, call_id);
+            ::gadget_macros::ext::contexts::services::ServicesContext::set_call_id(&mut #injected_context_var_name, call_id);
         }
     };
 
@@ -137,7 +157,7 @@ pub(crate) fn get_tangle_job_processor_wrapper(
         get_return_type_wrapper(return_type, Some(injected_context_var_name));
 
     Ok(quote! {
-        move |tangle_event: ::gadget_macros::ext::event_listeners::tangle::TangleEvent<_, _>| async move {
+        move |tangle_event: ::gadget_macros::ext::event_listeners::tangle::events::TangleEvent<_, _>| async move {
 
             #job_processor_call
             #job_processor_call_return

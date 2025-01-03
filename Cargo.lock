@@ -2761,8 +2761,10 @@ checksum = "7e36cc9d416881d2e24f9a963be5fb1cd90966419ac844274161d10488b3e825"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
  "serde",
+ "wasm-bindgen",
  "windows-targets 0.52.6",
 ]
 
@@ -3172,6 +3174,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "croner"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38fd53511eaf0b00a185613875fee58b208dfce016577d0ad4bb548e1c4fb3ee"
+dependencies = [
+ "chrono",
 ]
 
 [[package]]
@@ -4937,7 +4948,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-anvil-utils"
+name = "gadget-anvil-testing-utils"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
@@ -5022,7 +5033,7 @@ dependencies = [
  "alloy-pubsub",
  "alloy-transport",
  "eigensdk",
- "gadget-anvil-utils",
+ "gadget-anvil-testing-utils",
  "gadget-config",
  "gadget-std",
  "gadget-utils-evm",
@@ -5051,7 +5062,7 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "async-trait",
- "gadget-anvil-utils",
+ "gadget-anvil-testing-utils",
  "gadget-logging",
  "gadget-rpc-calls",
  "gadget-std",
@@ -5111,6 +5122,7 @@ dependencies = [
  "gadget-client-evm",
  "gadget-client-networking",
  "gadget-client-tangle",
+ "gadget-std",
  "thiserror 2.0.7",
 ]
 
@@ -5123,8 +5135,6 @@ dependencies = [
  "gadget-config",
  "gadget-std",
  "libp2p",
- "lock_api",
- "parking_lot",
  "serde",
  "serde_json",
  "thiserror 2.0.7",
@@ -5162,9 +5172,28 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "gadget-clients",
+ "gadget-config",
  "gadget-keystore",
+ "gadget-networking",
  "gadget-std",
+ "proc-macro2",
  "subxt",
+]
+
+[[package]]
+name = "gadget-core-testing-utils"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "gadget-config",
+ "gadget-logging",
+ "gadget-runners",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.7",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -5306,10 +5335,8 @@ dependencies = [
  "gadget-crypto-sp-core",
  "gadget-std",
  "k256",
- "paste",
  "serde",
  "serde_json",
- "sp-core 31.0.0",
  "subxt",
  "subxt-core",
  "thiserror 2.0.7",
@@ -5343,8 +5370,8 @@ name = "gadget-event-listeners"
 version = "0.1.0"
 dependencies = [
  "gadget-event-listeners-core",
+ "gadget-event-listeners-cronjob",
  "gadget-event-listeners-evm",
- "gadget-event-listeners-periodic",
  "gadget-event-listeners-tangle",
  "gadget-std",
 ]
@@ -5359,6 +5386,19 @@ dependencies = [
  "gadget-std",
  "thiserror 2.0.7",
  "tokio",
+]
+
+[[package]]
+name = "gadget-event-listeners-cronjob"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "gadget-event-listeners-core",
+ "gadget-logging",
+ "gadget-std",
+ "thiserror 2.0.7",
+ "tokio",
+ "tokio-cron-scheduler",
 ]
 
 [[package]]
@@ -5382,18 +5422,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gadget-event-listeners-periodic"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "gadget-event-listeners-core",
- "gadget-logging",
- "gadget-std",
- "thiserror 2.0.7",
- "tokio",
-]
-
-[[package]]
 name = "gadget-event-listeners-tangle"
 version = "0.1.0"
 dependencies = [
@@ -5413,6 +5441,22 @@ dependencies = [
  "subxt",
  "subxt-core",
  "tangle-subxt",
+ "thiserror 2.0.7",
+ "tokio",
+]
+
+[[package]]
+name = "gadget-executor"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "gadget-logging",
+ "log",
+ "nix 0.29.0",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "sysinfo",
  "thiserror 2.0.7",
  "tokio",
 ]
@@ -5479,11 +5523,11 @@ dependencies = [
  "alloy-provider",
  "alloy-transport",
  "async-trait",
+ "clap",
  "futures",
  "gadget-blueprint-proc-macro",
  "gadget-blueprint-proc-macro-core",
  "gadget-blueprint-serde",
- "gadget-client-tangle",
  "gadget-clients",
  "gadget-config",
  "gadget-context-derive",
@@ -5492,8 +5536,8 @@ dependencies = [
  "gadget-event-listeners",
  "gadget-keystore",
  "gadget-logging",
- "gadget-networking",
  "gadget-std",
+ "gadget-testing-utils",
  "tangle-subxt",
  "tokio",
 ]
@@ -5601,6 +5645,7 @@ dependencies = [
  "async-trait",
  "gadget-clients",
  "gadget-config",
+ "gadget-crypto",
  "gadget-keystore",
  "gadget-logging",
  "gadget-runner-core",
@@ -5653,10 +5698,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "gadget-tangle-testing-utils"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "futures-util",
+ "gadget-config",
+ "gadget-core-testing-utils",
+ "gadget-logging",
+ "gadget-runners",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.7",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "gadget-testing-utils"
 version = "0.1.0"
 dependencies = [
- "gadget-anvil-utils",
+ "gadget-anvil-testing-utils",
+ "gadget-core-testing-utils",
+ "gadget-tangle-testing-utils",
 ]
 
 [[package]]
@@ -5703,7 +5768,7 @@ dependencies = [
  "async-trait",
  "gadget-logging",
  "gadget-std",
- "subxt",
+ "tangle-subxt",
  "tracing",
 ]
 
@@ -6879,6 +6944,24 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.90",
+]
+
+[[package]]
+name = "incredible-squaring-blueprint"
+version = "0.1.1"
+dependencies = [
+ "async-trait",
+ "blueprint-metadata",
+ "gadget-client-tangle",
+ "gadget-config",
+ "gadget-event-listeners",
+ "gadget-logging",
+ "gadget-macros",
+ "gadget-runner-tangle",
+ "gadget-runners",
+ "gadget-std",
+ "gadget-testing-utils",
+ "tokio",
 ]
 
 [[package]]
@@ -8573,6 +8656,17 @@ name = "num-conv"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
+
+[[package]]
+name = "num-derive"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
+]
 
 [[package]]
 name = "num-format"
@@ -12553,6 +12647,21 @@ dependencies = [
  "socket2",
  "tokio-macros",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "tokio-cron-scheduler"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a5597b569b4712cf78aa0c9ae29742461b7bda1e49c2a5fdad1d79bf022f8f0"
+dependencies = [
+ "chrono",
+ "croner",
+ "num-derive",
+ "num-traits",
+ "tokio",
+ "tracing",
+ "uuid 1.11.0",
 ]
 
 [[package]]

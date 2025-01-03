@@ -1,10 +1,50 @@
+use super::args::EventListenerArgs;
+use super::declared_params_to_field_types;
+use crate::shared::{get_non_job_arguments, get_return_type_wrapper};
 use indexmap::IndexMap;
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
-use syn::{Ident, Type};
+use syn::parse::{Parse, ParseStream};
+use syn::{Ident, Token, Type};
 
-use crate::job::{declared_params_to_field_types, EventListenerArgs};
-use crate::shared::{get_non_job_arguments, get_return_type_wrapper};
+/// Defines custom keywords for defining Job arguments
+mod kw {
+    syn::custom_keyword!(instance);
+    syn::custom_keyword!(abi);
+}
+
+pub(crate) struct EvmArgs {
+    pub instance: Option<Ident>,
+    pub abi: Option<Type>,
+}
+
+impl Parse for EvmArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let content;
+        syn::parenthesized!(content in input);
+
+        let mut instance = None;
+        let mut abi = None;
+
+        while !content.is_empty() {
+            if content.peek(kw::instance) {
+                let _ = content.parse::<kw::instance>()?;
+                let _ = content.parse::<Token![=]>()?;
+                instance = Some(content.parse::<Ident>()?);
+            } else if content.peek(Token![,]) {
+                let _ = content.parse::<Token![,]>()?;
+            } else if content.peek(kw::abi) {
+                let _ = content.parse::<kw::abi>()?;
+                let _ = content.parse::<Token![=]>()?;
+                abi = Some(content.parse::<Type>()?);
+            } else {
+                return Err(content.error("Unexpected token"));
+            }
+        }
+
+        Ok(EvmArgs { instance, abi })
+    }
+}
 
 pub(crate) fn get_evm_instance_data(
     event_handler: &EventListenerArgs,
@@ -91,6 +131,7 @@ pub(crate) fn generate_evm_specific_impl(
             }
         }
 
+        #[automatically_derived]
         impl Deref for #struct_name
         {
             type Target = ::gadget_macros::ext::event_listeners::evm::contracts::AlloyContractInstance;
@@ -102,7 +143,8 @@ pub(crate) fn generate_evm_specific_impl(
             }
         }
 
-        impl ::gadget_macros::ext::event_listeners::core::markers::IsEvm for #struct_name {}
+        #[automatically_derived]
+        impl ::gadget_macros::ext::event_listeners::core::marker::IsEvm for #struct_name {}
     })
 }
 

@@ -9,7 +9,7 @@ use crate::error::EigenlayerError;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::RunnerError as Error;
-use gadget_utils::gadget_utils_evm::get_provider_http;
+use gadget_utils::evm::get_provider_http;
 
 #[derive(Clone, Copy)]
 pub struct EigenlayerBLSConfig {

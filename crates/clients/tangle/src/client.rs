@@ -65,8 +65,7 @@ impl TangleClient {
         let account_id = keystore
             .list_local::<SpSr25519>()
             .map_err(Error::Keystore)?
-            .iter()
-            .next()
+            .get(0)
             .unwrap()
             .0
              .0

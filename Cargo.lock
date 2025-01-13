@@ -6488,12 +6488,14 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "auto_impl",
+ "color-eyre",
  "gadget-client-core",
  "gadget-config",
  "gadget-crypto-sp-core",
  "gadget-keystore",
  "gadget-logging",
  "gadget-std",
+ "gadget-tangle-testing-utils",
  "serde",
  "serde_json",
  "sp-core",
@@ -7185,9 +7187,12 @@ name = "gadget-utils-tangle"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "color-eyre",
  "gadget-logging",
  "gadget-std",
+ "gadget-tangle-testing-utils",
  "tangle-subxt",
+ "tokio",
  "tracing",
 ]
 

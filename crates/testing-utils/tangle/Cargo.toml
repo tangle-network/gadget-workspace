@@ -1,7 +1,11 @@
 [package]
 name = "gadget-tangle-testing-utils"
 version = "0.1.0"
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 cargo-tangle = { workspace = true, features = ["tangle"] }
@@ -12,7 +16,7 @@ gadget-contexts = { workspace = true, features = ["tangle", "std"] }
 gadget-context-derive = { workspace = true, features = ["tangle", "std"] }
 gadget-macros = { workspace = true, features = ["tangle", "std"] }
 gadget-logging = { workspace = true, features = ["std"] }
-gadget-crypto-tangle-pair-signer = { workspace = true, features = ["std"] }
+gadget-crypto-tangle-pair-signer = { workspace = true, features = ["std", "evm"] }
 gadget-clients = { workspace = true, features = ["tangle", "std"] }
 gadget-core-testing-utils = { workspace = true }
 gadget-event-listeners = { workspace = true, features = ["std"] }

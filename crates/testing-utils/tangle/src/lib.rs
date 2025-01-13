@@ -6,13 +6,13 @@ use subxt::utils::AccountId32;
 
 pub use gadget_core_testing_utils::Error;
 
-pub mod context;
+pub mod harness;
 pub mod keys;
 pub mod node;
 pub mod runner;
 
 // Re-export commonly used types
-pub use context::TangleTestHarness;
+pub use harness::TangleTestHarness;
 
 pub type InputValue = tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;
 pub type OutputValue = tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::field::Field<AccountId32>;

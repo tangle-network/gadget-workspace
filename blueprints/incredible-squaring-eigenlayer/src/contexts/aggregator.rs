@@ -8,16 +8,18 @@ use alloy_network::{Ethereum, NetworkWallet};
 use alloy_primitives::{keccak256, Address, Bytes};
 use alloy_sol_types::SolType;
 use color_eyre::Result;
-use crates::{
-    config::StdGadgetConfiguration,
-    contexts::{EigenlayerContext, KeystoreContext},
-    eigenlayer_bindings::{
-        crypto_bls::{convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point},
-        services_blsaggregation::bls_agg::BlsAggregationServiceResponse,
-    },
-    runners::{BackgroundService, RunnerError},
-    utils::get_provider,
-};
+use gadget_contexts::{eigenlayer::EigenlayerContext, keystore::KeystoreContext};
+
+// use crates::{
+//     config::StdGadgetConfiguration,
+//     contexts::{EigenlayerContext, KeystoreContext},
+//     eigenlayer_bindings::{
+//         crypto_bls::{convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point},
+//         services_blsaggregation::bls_agg::BlsAggregationServiceResponse,
+//     },
+//     runners::{BackgroundService, RunnerError},
+//     utils::get_provider,
+// };
 use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
 use std::{collections::VecDeque, net::SocketAddr, sync::Arc, time::Duration};
@@ -27,10 +29,19 @@ use tokio::time::interval;
 
 use alloy_network::EthereumWallet;
 use eigensdk::client_avsregistry::reader::AvsRegistryChainReader;
+use eigensdk::crypto_bls::{convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point};
 use eigensdk::services_avsregistry::chaincaller::AvsRegistryServiceChainCaller;
-use eigensdk::services_blsaggregation::bls_agg::BlsAggregatorService;
+use eigensdk::services_blsaggregation::bls_agg::{
+    BlsAggregationServiceResponse, BlsAggregatorService,
+};
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory;
 use eigensdk::types::avs::{TaskIndex, TaskResponseDigest};
+use eigensdk::utils::get_provider;
+use gadget_config::StdGadgetConfiguration;
+use gadget_logging::{debug, error, info};
+use gadget_macros::contexts::{EigenlayerContext, KeystoreContext};
+use gadget_runners::core::error::RunnerError;
+use gadget_runners::core::runner::BackgroundService;
 use std::collections::HashMap;
 
 pub type BlsAggServiceInMemory = BlsAggregatorService<
@@ -443,7 +454,7 @@ impl BackgroundService for AggregatorContext {
                     let _ = result_tx.send(Ok(()));
                 }
                 Err(e) => {
-                    let _ = result_tx.send(Err(RunnerError::EigenlayerError(format!(
+                    let _ = result_tx.send(Err(RunnerError::Eigenlayer(format!(
                         "Aggregator task failed: {:?}",
                         e
                     ))));

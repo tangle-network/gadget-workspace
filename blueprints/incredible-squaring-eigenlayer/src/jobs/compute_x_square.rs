@@ -2,16 +2,16 @@
 use crate::contexts::client::SignedTaskResponse;
 use crate::contexts::x_square::EigenSquareContext;
 use crate::IIncredibleSquaringTaskManager::TaskResponse;
-use crate::{IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
+use crate::{Error, IncredibleSquaringTaskManager, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING};
 use alloy_primitives::{keccak256, Bytes, U256};
 use alloy_sol_types::SolType;
 use color_eyre::Result;
-use crates::{
-    contexts::KeystoreContext,
-    eigenlayer_bindings::crypto_bls::{BlsKeyPair, OperatorId},
-    event_listener::evm::contracts::EvmContractEventListener,
-    keystore::BackendExt,
-};
+use eigensdk::crypto_bls::BlsKeyPair;
+use eigensdk::crypto_bls::OperatorId;
+use gadget_contexts::keystore::KeystoreContext;
+use gadget_event_listeners::evm::EvmContractEventListener;
+use gadget_logging::{error, info};
+use gadget_macros::job;
 use std::{convert::Infallible, ops::Deref};
 
 /// Sends a signed task response to the BLS Aggregator.
@@ -99,7 +99,7 @@ pub async fn convert_event_to_inputs(
         IncredibleSquaringTaskManager::NewTaskCreated,
         alloy_rpc_types::Log,
     ),
-) -> Result<(U256, u32, Bytes, u8, u32), gadget_sdk::Error> {
+) -> Result<(U256, u32, Bytes, u8, u32), Error> {
     let task_index = event.taskIndex;
     let number_to_be_squared = event.task.numberToBeSquared;
     let task_created_block = event.task.taskCreatedBlock;

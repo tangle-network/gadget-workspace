@@ -14,6 +14,7 @@ publish = false
 gadget-std = { workspace = true, features = ["std"] }
 gadget-event-listeners = { workspace = true, features = ["std", "evm"] }
 gadget-macros = { workspace = true, features = ["evm", "std"] }
+gadget-contexts = { workspace = true, features = ["std", "eigenlayer", "keystore", "evm"] }
 gadget-crypto = { workspace = true, features = ["default"] }
 gadget-crypto-tangle-pair-signer = { workspace = true, features = ["evm"] }
 gadget-config = { workspace = true, features = ["std"] }
@@ -22,7 +23,7 @@ gadget-runners = { workspace = true, features = ["eigenlayer"] }
 gadget-utils = { workspace = true, features = ["evm"] }
 
 
-eigensdk = { workspace = true }
+eigensdk = { workspace = true, features = ["crypto-bls"] }
 tracing = { workspace = true }
 async-trait = { workspace = true }
 color-eyre = { workspace = true }
@@ -62,8 +63,8 @@ serde_json = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 bip39 = { workspace = true }
 thiserror = { workspace = true }
-jsonrpsee-core = { workspace = true }
-jsonrpsee-http-server = { workspace = true }
+jsonrpc-core = { workspace = true }
+jsonrpc-http-server = { workspace = true }
 num-bigint = { workspace = true }
 
 [dev-dependencies]

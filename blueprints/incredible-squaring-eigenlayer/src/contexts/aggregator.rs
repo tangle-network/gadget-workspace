@@ -3,23 +3,10 @@ use crate::IIncredibleSquaringTaskManager::Task;
 use crate::IIncredibleSquaringTaskManager::TaskResponse;
 use crate::BN254::G1Point;
 use crate::BN254::G2Point;
-use crate::{contexts::client::SignedTaskResponse, IncredibleSquaringTaskManager};
+use crate::{contexts::client::SignedTaskResponse, Error, IncredibleSquaringTaskManager};
 use alloy_network::{Ethereum, NetworkWallet};
 use alloy_primitives::{keccak256, Address, Bytes};
 use alloy_sol_types::SolType;
-use color_eyre::Result;
-use gadget_contexts::{eigenlayer::EigenlayerContext, keystore::KeystoreContext};
-
-// use crates::{
-//     config::StdGadgetConfiguration,
-//     contexts::{EigenlayerContext, KeystoreContext},
-//     eigenlayer_bindings::{
-//         crypto_bls::{convert_to_g1_point, convert_to_g2_point, BlsG1Point, BlsG2Point},
-//         services_blsaggregation::bls_agg::BlsAggregationServiceResponse,
-//     },
-//     runners::{BackgroundService, RunnerError},
-//     utils::get_provider,
-// };
 use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
 use std::{collections::VecDeque, net::SocketAddr, sync::Arc, time::Duration};
@@ -37,7 +24,9 @@ use eigensdk::services_blsaggregation::bls_agg::{
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory;
 use eigensdk::types::avs::{TaskIndex, TaskResponseDigest};
 use eigensdk::utils::get_provider;
+use gadget_config::ProtocolSettings;
 use gadget_config::StdGadgetConfiguration;
+use gadget_contexts::eigenlayer::EigenlayerContext;
 use gadget_logging::{debug, error, info};
 use gadget_macros::contexts::{EigenlayerContext, KeystoreContext};
 use gadget_runners::core::error::RunnerError;
@@ -69,7 +58,7 @@ impl AggregatorContext {
         task_manager_address: Address,
         wallet: EthereumWallet,
         sdk_config: StdGadgetConfiguration,
-    ) -> Result<Self, std::io::Error> {
+    ) -> Result<Self, Error> {
         let mut aggregator_context = AggregatorContext {
             port_address,
             task_manager_address,
@@ -85,8 +74,12 @@ impl AggregatorContext {
 
         // Initialize the bls registry service
         let bls_service = aggregator_context
+            .eigenlayer_client()
+            .await
+            .map_err(|e| Error::Context(e.to_string()))?
             .bls_aggregation_service_in_memory()
-            .await?;
+            .await
+            .map_err(|e| Error::Context(e.to_string()))?;
         aggregator_context.bls_aggregation_service = Some(Arc::new(Mutex::new(bls_service)));
 
         Ok(aggregator_context)
@@ -125,7 +118,7 @@ impl AggregatorContext {
         notify.notify_waiters();
     }
 
-    async fn start_server(aggregator: Arc<Mutex<Self>>) -> Result<()> {
+    async fn start_server(aggregator: Arc<Mutex<Self>>) -> Result<(), Error> {
         let mut io = IoHandler::new();
         io.add_method("process_signed_task_response", {
             let aggregator = Arc::clone(&aggregator);
@@ -160,12 +153,18 @@ impl AggregatorContext {
             }
         });
 
-        let socket: SocketAddr = aggregator.lock().await.port_address.parse()?;
+        let socket: SocketAddr = aggregator
+            .lock()
+            .await
+            .port_address
+            .parse()
+            .map_err(Error::Parse)?;
         let server = ServerBuilder::new(io)
             .cors(DomainsValidation::AllowOnly(vec![
                 AccessControlAllowOrigin::Any,
             ]))
-            .start_http(&socket)?;
+            .start_http(&socket)
+            .map_err(|e| Error::Context(e.to_string()))?;
 
         info!("Server running at {}", socket);
 
@@ -193,7 +192,7 @@ impl AggregatorContext {
                 info!("Server has stopped naturally");
                 result.map_err(|e| {
                     error!("Server task failed: {}", e);
-                    e
+                    Error::Runtime(e.to_string())
                 })?;
             }
             _ = async {
@@ -209,7 +208,7 @@ impl AggregatorContext {
                 // Spawn a blocking task to handle server shutdown
                 tokio::task::spawn_blocking(move || {
                     close_handle.close();
-                }).await?;
+                }).await.map_err(|e| Error::Runtime(e.to_string()))?;
 
                 // Wait for server to complete
                 let _ = server_rx.await;
@@ -221,7 +220,10 @@ impl AggregatorContext {
         Ok(())
     }
 
-    async fn process_signed_task_response(&mut self, resp: SignedTaskResponse) -> Result<()> {
+    async fn process_signed_task_response(
+        &mut self,
+        resp: SignedTaskResponse,
+    ) -> Result<(), Error> {
         let task_index = resp.task_response.referenceTaskIndex;
         let task_response_digest = keccak256(TaskResponse::abi_encode(&resp.task_response));
 
@@ -290,7 +292,7 @@ impl AggregatorContext {
         }
     }
 
-    async fn process_response(&mut self, resp: SignedTaskResponse) -> Result<()> {
+    async fn process_response(&mut self, resp: SignedTaskResponse) -> Result<(), Error> {
         let SignedTaskResponse {
             task_response,
             signature,
@@ -336,11 +338,13 @@ impl AggregatorContext {
                     std::io::ErrorKind::Other,
                     "BLS Aggregation Service not initialized",
                 )
-            })?
+            })
+            .map_err(|e| Error::Context(e.to_string()))?
             .lock()
             .await
             .process_new_signature(task_index, task_response_digest, signature, operator_id)
-            .await?;
+            .await
+            .map_err(|e| Error::Context(e.to_string()))?;
 
         if let Some(tasks_responses) = self.tasks_responses.lock().await.get_mut(&task_index) {
             tasks_responses.insert(task_response_digest, task_response.clone());
@@ -359,7 +363,8 @@ impl AggregatorContext {
                     std::io::ErrorKind::Other,
                     "BLS Aggregation Service not initialized",
                 )
-            })?
+            })
+            .map_err(|e| Error::Context(e.to_string()))?
             .lock()
             .await
             .aggregated_response_receiver
@@ -368,8 +373,8 @@ impl AggregatorContext {
             .recv()
             .await
         {
-            self.send_aggregated_response_to_contract(aggregated_response?)
-                .await?;
+            let response = aggregated_response.map_err(|e| Error::Context(e.to_string()))?;
+            self.send_aggregated_response_to_contract(response).await?;
         }
         Ok(())
     }
@@ -377,7 +382,7 @@ impl AggregatorContext {
     async fn send_aggregated_response_to_contract(
         &self,
         response: BlsAggregationServiceResponse,
-    ) -> Result<()> {
+    ) -> Result<(), Error> {
         let non_signer_stakes_and_signature = NonSignerStakesAndSignature {
             nonSignerPubkeys: response
                 .non_signers_pub_keys_g1
@@ -429,9 +434,11 @@ impl AggregatorContext {
                 &self.wallet,
             ))
             .send()
-            .await?
+            .await
+            .map_err(|e| Error::Chain(e.to_string()))?
             .get_receipt()
-            .await?;
+            .await
+            .map_err(|e| Error::Chain(e.to_string()))?;
 
         info!(
             "Sent aggregated response to contract for task index: {}",

@@ -1,7 +1,9 @@
 #![allow(dead_code)]
+
 use alloy_sol_types::sol;
 use gadget_macros::load_abi;
 use serde::{Deserialize, Serialize};
+use std::net::AddrParseError;
 use thiserror::Error;
 
 pub mod constants;
@@ -14,8 +16,16 @@ mod tests;
 pub enum Error {
     #[error("Job error: {0}")]
     Job(String),
+    #[error("Chain error: {0}")]
+    Chain(String),
+    #[error("Context error: {0}")]
+    Context(String),
     #[error("Event conversion error: {0}")]
     Conversion(String),
+    #[error("Parse error: {0}")]
+    Parse(#[from] AddrParseError),
+    #[error("Runtime error: {0}")]
+    Runtime(String),
 }
 
 sol!(

@@ -23,7 +23,7 @@ async fn main() {
     let wallet = EthereumWallet::from(signer);
     let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet.clone());
 
-    let server_address = format!("{}:{}", env.target_addr, 8081);
+    let server_address = format!("{}:{}", "127.0.0.1", 8081);
     let eigen_client_context = EigenSquareContext {
         client: AggregatorClient::new(&server_address)?,
         std_config: env.clone(),

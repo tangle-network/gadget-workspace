@@ -3,9 +3,6 @@ pub mod client;
 pub mod error;
 pub mod services;
 
-#[cfg(test)]
-mod tests;
-
 #[cfg(not(any(feature = "std", feature = "web")))]
 compile_error!("`std` or `web` feature required");
 
@@ -22,4 +19,10 @@ pub trait EventsClient<Event>: Clone + Send + Sync {
     ///
     /// If no event has yet been fetched, the client will call [`next_event`](Self::next_event).
     async fn latest_event(&self) -> Option<Event>;
+}
+
+// NOTE: Actual client tests are in gadget-tangle-testing-utils
+#[test]
+fn it_works() {
+    assert_eq!(2 + 2, 4);
 }

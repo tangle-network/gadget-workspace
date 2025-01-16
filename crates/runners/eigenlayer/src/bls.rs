@@ -1,12 +1,18 @@
 use alloy_primitives::{hex, Address, Bytes, FixedBytes, U256};
-
+use alloy_signer_local::{LocalSigner, PrivateKeySigner};
 use eigensdk::client_avsregistry::writer::AvsRegistryChainWriter;
 use eigensdk::client_elcontracts::{reader::ELChainReader, writer::ELChainWriter};
+use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::logging::get_test_logger;
 use eigensdk::types::operator::Operator;
 
 use crate::error::EigenlayerError;
 use gadget_config::{GadgetConfiguration, ProtocolSettings};
+use gadget_contexts::keystore::KeystoreContext;
+use gadget_keystore::backends::bn254::Bn254Backend;
+use gadget_keystore::backends::tangle::TangleBackend;
+use gadget_keystore::crypto::tangle_pair_signer::TanglePairSigner;
+use gadget_keystore::Error::AlloySigner;
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::RunnerError as Error;
 use gadget_utils::evm::get_provider_http;
@@ -53,8 +59,16 @@ async fn requires_registration_bls_impl(env: &GadgetConfiguration) -> Result<boo
     };
     let registry_coordinator_address = contract_addresses.registry_coordinator_address;
     let operator_state_retriever_address = contract_addresses.operator_state_retriever_address;
-    let operator = env.keystore()?.ecdsa_key()?;
-    let operator_address = operator.alloy_key()?.address();
+
+    // TODO: Update with Eigen-specific key logic once keystore is updated
+    let ecdsa_public = env.keystore().iter_ecdsa().next().unwrap();
+    let ecdsa_pair = env
+        .keystore()
+        .expose_ecdsa_secret(&ecdsa_public)
+        .unwrap()
+        .unwrap();
+    let operator = TanglePairSigner::new(ecdsa_pair);
+    let operator_address = operator.alloy_key().unwrap().address();
 
     let avs_registry_reader = eigensdk::client_avsregistry::reader::AvsRegistryChainReader::new(
         get_test_logger(),
@@ -95,12 +109,17 @@ async fn register_bls_impl(
     let rewards_coordinator_address = contract_addresses.rewards_coordinator_address;
     let avs_directory_address = contract_addresses.avs_directory_address;
 
-    let operator = env
+    // TODO: Update with Eigen-specific key logic once keystore is updated
+    let ecdsa_public = env.keystore().iter_ecdsa().next().unwrap();
+    let ecdsa_pair = env
         .keystore()
-        .map_err(|e| EigenlayerError::Keystore(e.to_string()))?
-        .ecdsa_key()?;
+        .expose_ecdsa_secret(&ecdsa_public)
+        .unwrap()
+        .unwrap();
+    let operator = TanglePairSigner::new(ecdsa_pair);
+
     let operator_private_key = hex::encode(operator.signer().seed());
-    let operator_address = operator.alloy_key()?.address();
+    let operator_address = operator.alloy_key().unwrap().address();
     let provider = get_provider_http(&env.http_rpc_endpoint);
 
     let delegation_manager =
@@ -126,11 +145,18 @@ async fn register_bls_impl(
     .await
     .map_err(|e| EigenlayerError::AvsRegistry(e))?;
 
-    let operator_bls_key = env
+    // TODO: Update with Eigen-specific key logic once keystore is updated
+    let bn254_public = env.keystore().iter_bls_bn254().next().unwrap();
+    let bn254_secret = env
         .keystore()
+        .expose_bls_bn254_secret(&bn254_public)
         .map_err(|e| EigenlayerError::Keystore(e.to_string()))?
-        .bls_bn254_key()
+        .ok_or(EigenlayerError::Keystore(
+            "Missing BLS BN254 key".to_string(),
+        ))?;
+    let operator_bls_key = BlsKeyPair::new(bn254_secret.0.to_string())
         .map_err(|e| EigenlayerError::Keystore(e.to_string()))?;
+
     let digest_hash: FixedBytes<32> = FixedBytes::from([0x02; 32]);
 
     let now = std::time::SystemTime::now();

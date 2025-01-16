@@ -21,6 +21,7 @@ gadget-config = { workspace = true, features = ["std"] }
 gadget-logging = { workspace = true, features = ["std"] }
 gadget-runners = { workspace = true, features = ["eigenlayer"] }
 gadget-utils = { workspace = true, features = ["evm"] }
+gadget-keystore = { workspace = true, features = ["std", "evm", "eigenlayer"] }
 
 
 eigensdk = { workspace = true, features = ["crypto-bls"] }

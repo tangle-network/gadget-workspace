@@ -7,8 +7,10 @@ use serde::{Deserialize, Serialize};
 pub enum KeyTypeId {
     #[cfg(feature = "bn254")]
     Bn254,
-    #[cfg(any(feature = "k256", feature = "tangle"))]
+    #[cfg(feature = "tangle")]
     Ecdsa,
+    #[cfg(feature = "k256")]
+    K256,
     #[cfg(any(feature = "sr25519-schnorrkel", feature = "tangle"))]
     Sr25519,
     #[cfg(any(feature = "bls", feature = "tangle"))]
@@ -23,8 +25,10 @@ impl KeyTypeId {
     pub const ENABLED: &'static [Self] = &[
         #[cfg(feature = "bn254")]
         Self::Bn254,
-        #[cfg(any(feature = "k256", feature = "tangle"))]
+        #[cfg(feature = "tangle")]
         Self::Ecdsa,
+        #[cfg(feature = "k256")]
+        Self::K256,
         #[cfg(any(feature = "sr25519-schnorrkel", feature = "tangle"))]
         Self::Sr25519,
         #[cfg(any(feature = "bls", feature = "tangle"))]
@@ -39,8 +43,10 @@ impl KeyTypeId {
         match *self {
             #[cfg(feature = "bn254")]
             Self::Bn254 => "bn254",
-            #[cfg(any(feature = "k256", feature = "tangle"))]
+            #[cfg(feature = "tangle")]
             Self::Ecdsa => "ecdsa",
+            #[cfg(feature = "k256")]
+            Self::K256 => "k256",
             #[cfg(any(feature = "sr25519-schnorrkel", feature = "tangle"))]
             Self::Sr25519 => "sr25519",
             #[cfg(any(feature = "bls", feature = "tangle"))]
@@ -113,6 +119,7 @@ impl clap::ValueEnum for KeyTypeId {
             Self::Sr25519,
             Self::Ed25519,
             Self::Ecdsa,
+            Self::K256,
             Self::Bls381,
             Self::Bn254,
         ]
@@ -128,6 +135,9 @@ impl clap::ValueEnum for KeyTypeId {
             }
             Self::Ecdsa => clap::builder::PossibleValue::new("ecdsa")
                 .help("Elliptic Curve Digital Signature Algorithm"),
+            Self::K256 => {
+                clap::builder::PossibleValue::new("k256").help("ECDSA on Secp256k1 Elliptic Curve")
+            }
             Self::Bls381 => {
                 clap::builder::PossibleValue::new("bls381").help("Boneh-Lynn-Shacham on BLS12-381")
             }

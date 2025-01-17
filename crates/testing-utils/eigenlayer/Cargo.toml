@@ -9,11 +9,16 @@ repository.workspace = true
 
 [dependencies]
 gadget-std = { workspace = true }
+gadget-anvil-testing-utils = { workspace = true }
+gadget-config = { workspace = true, features = ["eigenlayer"] }
+gadget-logging = { workspace = true }
+gadget-utils = { workspace = true, features = ["eigenlayer", "evm"] }
 alloy-primitives = { workspace = true }
 alloy-provider = { workspace = true }
 alloy-rpc-types = { workspace = true }
 alloy-rpc-types-eth = { workspace = true }
 alloy-transport = { workspace = true }
+eigensdk = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["alloc"] }
 testcontainers = { workspace = true }

@@ -1,17 +1,14 @@
-use crate::anvil;
-use crate::helpers::get_receipt;
 use alloy_primitives::Uint;
-use alloy_primitives::{address, Address, Bytes, U256};
+use alloy_primitives::{address, Address};
 use alloy_provider::Provider;
-use gadget_sdk::binding::ipauser_registry::PauserRegistry;
-use gadget_sdk::binding::registry_coordinator::RegistryCoordinator;
-use gadget_sdk::config::protocol::EigenlayerContractAddresses;
-use gadget_sdk::futures::StreamExt;
-use gadget_sdk::tokio::sync::Mutex;
-use gadget_sdk::utils::evm::{get_provider_http, get_provider_ws};
-use gadget_sdk::{error, info};
-use gadget_std::{sync::Arc, time::Duration};
-use testcontainers::{ContainerAsync, GenericImage};
+use eigensdk::utils::pauserregistry::PauserRegistry;
+use eigensdk::utils::registrycoordinator::IRegistryCoordinator::OperatorSetParam;
+use eigensdk::utils::registrycoordinator::IStakeRegistry::StrategyParams;
+use eigensdk::utils::registrycoordinator::RegistryCoordinator;
+use gadget_anvil_testing_utils::get_receipt;
+use gadget_config::protocol::EigenlayerContractAddresses;
+use gadget_logging::info;
+use gadget_utils::evm::get_provider_http;
 
 pub const AVS_DIRECTORY_ADDR: Address = address!("0000000000000000000000000000000000000000");
 pub const DELEGATION_MANAGER_ADDR: Address = address!("dc64a140aa3e981100a9beca4e685f962f0cf6c9");
@@ -22,9 +19,6 @@ pub const OPERATOR_STATE_RETRIEVER_ADDR: Address =
 pub const REGISTRY_COORDINATOR_ADDR: Address = address!("c3e53f4d16ae77db1c982e75a937b9f60fe63690");
 pub const SERVICE_MANAGER_ADDR: Address = address!("67d269191c92caf3cd7723f116c85e6e9bf55933");
 pub const STRATEGY_MANAGER_ADDR: Address = address!("5fc8d32690cc91d4c39d9d3abcbd16989f875707");
-
-const DEFAULT_ANVIL_STATE_PATH: &str =
-    "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
 
 pub struct EigenlayerTestEnvironment {
     pub http_endpoint: String,
@@ -74,18 +68,20 @@ pub async fn setup_eigenlayer_test_environment(
     let erc20_mock_address = address!("7969c5ed335650692bc04293b07f5bf2e7a673c0");
     std::env::set_var("ERC20_MOCK_ADDR", erc20_mock_address.to_string());
 
-    let pauser_registry = PauserRegistry::deploy(provider.clone()).await.unwrap();
+    let pauser_registry = PauserRegistry::deploy(provider.clone(), accounts.clone(), accounts[0])
+        .await
+        .unwrap();
     let pauser_registry_address = *pauser_registry.address();
 
     let registry_coordinator =
         RegistryCoordinator::new(registry_coordinator_address, provider.clone());
 
-    let operator_set_params = RegistryCoordinator::OperatorSetParam {
+    let operator_set_params = OperatorSetParam {
         maxOperatorCount: 10,
         kickBIPsOfOperatorStake: 100,
         kickBIPsOfTotalStake: 1000,
     };
-    let strategy_params = RegistryCoordinator::StrategyParams {
+    let strategy_params = StrategyParams {
         strategy: erc20_mock_address,
         multiplier: Uint::from(1),
     };
@@ -96,8 +92,8 @@ pub async fn setup_eigenlayer_test_environment(
         Uint::from(0),
         vec![strategy_params],
     ))
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     info!("Setup Eigenlayer test environment");
 

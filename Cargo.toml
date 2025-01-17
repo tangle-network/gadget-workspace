@@ -108,6 +108,7 @@ gadget-testing-utils = { version = "0.1.0", path = "./crates/testing-utils", def
 gadget-core-testing-utils = { version = "0.1.0", path = "./crates/testing-utils/core", default-features = false }
 gadget-anvil-testing-utils = { version = "0.1.0", path = "./crates/testing-utils/anvil", default-features = false }
 gadget-tangle-testing-utils = { version = "0.1.0", path = "./crates/testing-utils/tangle", default-features = false }
+gadget-eigenlayer-testing-utils = { version = "0.1.0", path = "./crates/testing-utils/eigenlayer", default-features = false }
 
 # Metrics
 gadget-metrics = { version = "0.1.0", path = "./crates/metrics", default-features = false }

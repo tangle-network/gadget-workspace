@@ -9,7 +9,6 @@ cfg_remote! {
     pub mod remote;
 }
 
-mod k256;
 #[cfg(feature = "tangle")]
 pub mod tangle;
 

@@ -3,8 +3,7 @@ use crate::contexts::client::SignedTaskResponse;
 use crate::contexts::x_square::EigenSquareContext;
 use crate::IIncredibleSquaringTaskManager::TaskResponse;
 use crate::{
-    Error, IncredibleSquaringTaskManager, ProcessorError,
-    INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
+    IncredibleSquaringTaskManager, ProcessorError, INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
 };
 use alloy_primitives::{keccak256, Bytes, U256};
 use alloy_sol_types::SolType;

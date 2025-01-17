@@ -6352,15 +6352,19 @@ dependencies = [
 name = "gadget-anvil-testing-utils"
 version = "0.1.0"
 dependencies = [
+ "alloy-contract",
  "alloy-primitives 0.8.15",
  "alloy-provider",
  "alloy-rpc-types",
  "alloy-rpc-types-eth 0.5.4",
  "alloy-transport",
+ "gadget-keystore",
+ "gadget-logging",
  "gadget-std",
  "serde",
  "serde_json",
  "testcontainers",
+ "thiserror 2.0.7",
  "tokio",
  "url",
 ]
@@ -6696,6 +6700,8 @@ dependencies = [
 name = "gadget-crypto-k256"
 version = "0.1.0"
 dependencies = [
+ "alloy-primitives 0.8.15",
+ "alloy-signer-local",
  "gadget-crypto-core",
  "gadget-std",
  "hex",
@@ -6773,6 +6779,28 @@ dependencies = [
  "alloy-transport",
  "alloy-transport-http",
  "serde",
+]
+
+[[package]]
+name = "gadget-eigenlayer-testing-utils"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives 0.8.15",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-rpc-types-eth 0.5.4",
+ "alloy-transport",
+ "eigensdk",
+ "gadget-anvil-testing-utils",
+ "gadget-config",
+ "gadget-logging",
+ "gadget-std",
+ "gadget-utils",
+ "serde",
+ "serde_json",
+ "testcontainers",
+ "tokio",
+ "url",
 ]
 
 [[package]]
@@ -7154,6 +7182,7 @@ version = "0.1.0"
 dependencies = [
  "gadget-anvil-testing-utils",
  "gadget-core-testing-utils",
+ "gadget-eigenlayer-testing-utils",
  "gadget-tangle-testing-utils",
 ]
 

@@ -75,6 +75,10 @@ jobs:
       matrix:
         package:
           [
+            # Blueprints
+            incredible-squaring-blueprint,
+            incredible-squaring-blueprint-eigenlayer,
+
             # Macros
             gadget-blueprint-proc-macro,
             gadget-blueprint-proc-macro-core,

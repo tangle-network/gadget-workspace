@@ -1,5 +1,4 @@
 use color_eyre::eyre::Result;
-use gadget_crypto::k256::K256Ecdsa;
 use gadget_crypto::sp_core::{SpBls377, SpBls381, SpEcdsa, SpEd25519, SpSr25519};
 use gadget_crypto::{bn254::ArkBlsBn254, KeyTypeId};
 use gadget_crypto_core::KeyEncoding;
@@ -44,11 +43,6 @@ pub fn generate_key(
             let public = keystore.generate::<SpEcdsa>(seed)?;
             let secret = keystore.get_secret::<SpEcdsa>(&public)?;
             (public.to_bytes(), secret.to_bytes().to_vec())
-        }
-        KeyTypeId::K256 => {
-            let public = keystore.generate::<K256Ecdsa>(seed)?;
-            let secret = keystore.get_secret::<K256Ecdsa>(&public)?;
-            (public.to_bytes(), secret.to_bytes())
         }
         KeyTypeId::Bls381 => {
             let public = keystore.generate::<SpBls381>(seed)?;

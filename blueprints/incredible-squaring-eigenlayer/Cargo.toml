@@ -69,7 +69,7 @@ jsonrpc-http-server = { workspace = true }
 num-bigint = { workspace = true }
 
 [dev-dependencies]
-gadget-testing-utils = { workspace = true }
+gadget-testing-utils = { workspace = true, features = ["anvil", "eigenlayer"] }
 tempfile = { workspace = true }
 
 [build-dependencies]

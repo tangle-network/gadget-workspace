@@ -1,6 +1,6 @@
 use crate::IIncredibleSquaringTaskManager::Task;
 use crate::{
-    contexts::aggregator::AggregatorContext, Error, IncredibleSquaringTaskManager, ProcessorError,
+    contexts::aggregator::AggregatorContext, IncredibleSquaringTaskManager, ProcessorError,
     INCREDIBLE_SQUARING_TASK_MANAGER_ABI_STRING,
 };
 use gadget_event_listeners::evm::EvmContractEventListener;

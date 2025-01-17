@@ -14,15 +14,20 @@ use gadget_config::protocol::EigenlayerContractAddresses;
 use gadget_config::supported_chains::SupportedChains;
 use gadget_config::{load, ContextConfig};
 use gadget_logging::{error, info, setup_log};
+use gadget_macros::ext::futures::StreamExt;
 use gadget_runners::core::runner::BlueprintRunner;
 use gadget_runners::eigenlayer::bls::EigenlayerBLSConfig;
 use gadget_std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+use gadget_testing_utils::anvil::anvil::*;
+use gadget_testing_utils::anvil::keys::*;
+use gadget_testing_utils::eigenlayer::env::{
+    setup_eigenlayer_test_environment, EigenlayerTestEnvironment,
+};
 use gadget_utils::evm::{get_provider_http, get_provider_ws, get_wallet_provider_http};
 use reqwest::Url;
-use std::path::Path;
 
 sol!(
     #[allow(missing_docs, clippy::too_many_arguments)]
@@ -31,9 +36,6 @@ sol!(
     RegistryCoordinator,
     "./contracts/out/RegistryCoordinator.sol/RegistryCoordinator.json"
 );
-
-const ANVIL_STATE_PATH: &str =
-    "./blueprint-test-utils/anvil/deployed_anvil_states/testnet_state.json";
 
 #[tokio::test(flavor = "multi_thread")]
 #[allow(clippy::needless_return)]
@@ -106,27 +108,21 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
     let provider = get_wallet_provider_http(&http_endpoint, wallet.clone());
 
     // Set up Temporary Testing Keystore
-    let tmp_dir = tempfile::TempDir::new().unwrap();
-    let keystore_path = &format!("{}", tmp_dir.path().display());
-    let keystore_path = Path::new(keystore_path);
-    let keystore_uri = keystore_path.join(format!("keystores/{}", uuid::Uuid::new_v4()));
-    inject_test_keys(&keystore_uri, KeyGenType::Anvil(0))
-        .await
-        .expect("Failed to inject testing keys for Blueprint Examples Test");
-    let keystore_uri_normalized =
-        std::path::absolute(&keystore_uri).expect("Failed to resolve keystore URI");
-    let keystore_uri_str = format!("file:{}", keystore_uri_normalized.display());
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let temp_dir_path = temp_dir.path().to_string_lossy().into_owned();
+    inject_anvil_key(&temp_dir_path, ANVIL_PRIVATE_KEYS[0]).unwrap();
 
     let config = ContextConfig::create_eigenlayer_config(
         Url::parse(&http_endpoint).unwrap(),
         Url::parse(&ws_endpoint).unwrap(),
-        keystore_uri_str,
+        temp_dir_path,
+        None,
         SupportedChains::LocalTestnet,
         EigenlayerContractAddresses::default(),
     );
     let env = load(config).expect("Failed to load environment");
 
-    let server_address = format!("{}:{}", env.target_addr, 8081);
+    let server_address = format!("{}:{}", "127.0.0.1", 8081);
     let eigen_client_context = EigenSquareContext {
         client: AggregatorClient::new(&server_address).unwrap(),
         std_config: env.clone(),
@@ -182,7 +178,7 @@ async fn test_eigenlayer_incredible_squaring_blueprint() {
         _ => {
             panic!(
                 "Test failed with {} successful responses out of {} required",
-                successful_responses_clone.lock().await,
+                successful_responses_clone.lock().unwrap(),
                 num_successful_responses_required
             );
         }
@@ -325,7 +321,13 @@ pub async fn setup_task_response_listener(
                 .unwrap()
                 .inner
                 .data;
-            let mut counter = successful_responses.lock().await;
+            let mut counter = match successful_responses.lock() {
+                Ok(guard) => guard,
+                Err(e) => {
+                    error!("Failed to lock successful_responses: {}", e);
+                    return;
+                }
+            };
             *counter += 1;
         }
     }

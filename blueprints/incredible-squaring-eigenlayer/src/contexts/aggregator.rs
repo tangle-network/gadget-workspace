@@ -5,7 +5,7 @@ use crate::BN254::G1Point;
 use crate::BN254::G2Point;
 use crate::{contexts::client::SignedTaskResponse, Error, IncredibleSquaringTaskManager};
 use alloy_network::{Ethereum, NetworkWallet};
-use alloy_primitives::{keccak256, Address, Bytes};
+use alloy_primitives::{keccak256, Address};
 use alloy_sol_types::SolType;
 use jsonrpc_core::{IoHandler, Params, Value};
 use jsonrpc_http_server::{AccessControlAllowOrigin, DomainsValidation, ServerBuilder};
@@ -24,7 +24,6 @@ use eigensdk::services_blsaggregation::bls_agg::{
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory;
 use eigensdk::types::avs::{TaskIndex, TaskResponseDigest};
 use eigensdk::utils::get_provider;
-use gadget_config::ProtocolSettings;
 use gadget_config::StdGadgetConfiguration;
 use gadget_contexts::eigenlayer::EigenlayerContext;
 use gadget_logging::{debug, error, info};

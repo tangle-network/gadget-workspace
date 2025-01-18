@@ -10,6 +10,8 @@ use gadget_config::{GadgetConfiguration, ProtocolSettings};
 use gadget_contexts::keystore::KeystoreContext;
 use gadget_keystore::backends::bn254::Bn254Backend;
 use gadget_keystore::backends::eigenlayer::EigenlayerBackend;
+use gadget_keystore::backends::Backend;
+use gadget_keystore::crypto::k256::K256Ecdsa;
 use gadget_runner_core::config::BlueprintConfig;
 use gadget_runner_core::error::RunnerError as Error;
 use gadget_utils::evm::get_provider_http;
@@ -59,9 +61,8 @@ async fn requires_registration_bls_impl(env: &GadgetConfiguration) -> Result<boo
 
     let ecdsa_public = env
         .keystore()
-        .iter_ecdsa()
-        .next()
-        .ok_or_else(|| Error::Keystore("No ECDSA keys found".into()))?;
+        .first_local::<K256Ecdsa>()
+        .map_err(|e| Error::Keystore(e.to_string()))?;
     let ecdsa_secret = env
         .keystore()
         .expose_ecdsa_secret(&ecdsa_public)
@@ -112,9 +113,8 @@ async fn register_bls_impl(
 
     let ecdsa_public = env
         .keystore()
-        .iter_ecdsa()
-        .next()
-        .ok_or_else(|| Error::Keystore("No ECDSA keys found".into()))?;
+        .first_local::<K256Ecdsa>()
+        .map_err(|e| Error::Keystore(e.to_string()))?;
     let ecdsa_secret = env
         .keystore()
         .expose_ecdsa_secret(&ecdsa_public)

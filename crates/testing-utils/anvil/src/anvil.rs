@@ -15,7 +15,22 @@ use testcontainers::{
 };
 use tokio::io::AsyncBufReadExt;
 
-pub type Container = ContainerAsync<GenericImage>;
+pub type ContainerInner = ContainerAsync<GenericImage>;
+pub struct Container {
+    inner: Arc<Mutex<ContainerInner>>,
+}
+
+impl Container {
+    pub fn new(container: ContainerInner) -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(container)),
+        }
+    }
+
+    pub fn inner(&self) -> Arc<Mutex<ContainerInner>> {
+        self.inner.clone()
+    }
+}
 
 pub const ANVIL_IMAGE: &str = "ghcr.io/foundry-rs/foundry";
 pub const ANVIL_TAG: &str = "nightly-5b7e4cb3c882b28f3c32ba580de27ce7381f415a";
@@ -94,13 +109,13 @@ pub async fn start_anvil_container(
     let ws_endpoint = format!("ws://localhost:{}", port);
     println!("Anvil WS endpoint: {}", ws_endpoint);
 
-    mine_anvil_blocks(&container, 200).await;
+    let container = Container::new(container);
 
     (container, http_endpoint, ws_endpoint)
 }
 
 /// Mine Anvil blocks.
-pub async fn mine_anvil_blocks(container: &Container, n: u32) {
+pub async fn mine_anvil_blocks(container: &ContainerInner, n: u32) {
     let mut output = container
         .exec(ExecCommand::new([
             "cast",
@@ -129,10 +144,7 @@ use testcontainers::{ContainerAsync, GenericImage};
 ///    - `container` as a [`ContainerAsync`] - The Anvil container.
 ///    - `http_endpoint` as a `String` - The Anvil HTTP endpoint.
 ///    - `ws_endpoint` as a `String` - The Anvil WS endpoint.
-pub async fn start_anvil_testnet(
-    path: &str,
-    include_logs: bool,
-) -> (ContainerAsync<GenericImage>, String, String) {
+pub async fn start_anvil_testnet(path: &str, include_logs: bool) -> (Container, String, String) {
     let (container, http_endpoint, ws_endpoint) = start_anvil_container(path, include_logs).await;
     std::env::set_var("EIGENLAYER_HTTP_ENDPOINT", http_endpoint.clone());
     std::env::set_var("EIGENLAYER_WS_ENDPOINT", ws_endpoint.clone());
@@ -152,9 +164,7 @@ pub async fn start_anvil_testnet(
 ///    - `container` as a [`ContainerAsync`] - The Anvil container.
 ///    - `http_endpoint` as a `String` - The Anvil HTTP endpoint.
 ///    - `ws_endpoint` as a `String` - The Anvil WS endpoint.
-pub async fn start_default_anvil_testnet(
-    include_logs: bool,
-) -> (ContainerAsync<GenericImage>, String, String) {
+pub async fn start_default_anvil_testnet(include_logs: bool) -> (Container, String, String) {
     info!("Starting Anvil testnet from default state file");
     start_anvil_container(DEFAULT_ANVIL_STATE_PATH, include_logs).await
 }

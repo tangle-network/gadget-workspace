@@ -11,7 +11,9 @@ use color_eyre::Result;
 use eigensdk::crypto_bls::BlsKeyPair;
 use eigensdk::crypto_bls::OperatorId;
 use gadget_contexts::keystore::KeystoreContext;
+use gadget_crypto::bn254::ArkBlsBn254;
 use gadget_event_listeners::evm::EvmContractEventListener;
+use gadget_keystore::backends::Backend;
 use gadget_logging::{error, info};
 use gadget_macros::ext::keystore::backends::bn254::Bn254Backend;
 use gadget_macros::job;
@@ -49,8 +51,7 @@ pub async fn xsquare_eigen(
         numberSquared: number_to_be_squared.saturating_pow(U256::from(2u32)),
     };
 
-    // TODO: Update once more keystore methods are implemented
-    let bn254_public = ctx.keystore().iter_bls_bn254().next().unwrap();
+    let bn254_public = ctx.keystore().first_local::<ArkBlsBn254>().unwrap();
     let bn254_secret = match ctx.keystore().expose_bls_bn254_secret(&bn254_public) {
         Ok(s) => match s {
             Some(s) => s,

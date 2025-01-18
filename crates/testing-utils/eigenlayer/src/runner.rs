@@ -5,36 +5,39 @@ use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_runners::core::error::RunnerError as Error;
 use gadget_runners::core::jobs::JobBuilder;
 use gadget_runners::core::runner::BackgroundService;
-use gadget_runners::tangle::tangle::TangleConfig;
+use gadget_runners::eigenlayer::bls::EigenlayerBLSConfig;
 
-pub struct TangleTestEnv {
+pub struct EigenlayerBLSTestEnv {
     runner: TestRunner,
-    config: TangleConfig,
+    config: EigenlayerBLSConfig,
     gadget_config: GadgetConfiguration,
 }
 
-impl TestEnv for TangleTestEnv {
-    type Config = TangleConfig;
+impl TestEnv for EigenlayerBLSTestEnv {
+    type Config = EigenlayerBLSConfig;
 
-    fn new<J, B, T>(
-        config: Self::Config,
-        env: GadgetConfiguration,
-        jobs: Vec<J>,
-        services: Vec<B>,
-    ) -> Result<Self, Error>
-    where
-        J: Into<JobBuilder<T>> + 'static,
-        B: BackgroundService,
-        T: InitializableEventHandler + Send + 'static,
-    {
-        let runner =
-            TestRunner::new::<J, B, T, Self::Config>(config.clone(), env.clone(), jobs, services);
+    fn new(config: Self::Config, env: GadgetConfiguration) -> Result<Self, Error> {
+        let mut runner = TestRunner::new(config.clone(), env.clone());
 
         Ok(Self {
             runner,
             config,
             gadget_config: env,
         })
+    }
+
+    fn add_job<J>(&mut self, job: J)
+    where
+        J: InitializableEventHandler + Send + 'static,
+    {
+        self.runner.add_job(job);
+    }
+
+    fn add_background_service<B>(&mut self, service: B)
+    where
+        B: BackgroundService + Send + 'static,
+    {
+        self.runner.add_background_service(service);
     }
 
     fn get_gadget_config(self) -> GadgetConfiguration {

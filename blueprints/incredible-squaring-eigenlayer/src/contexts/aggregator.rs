@@ -24,7 +24,7 @@ use eigensdk::services_blsaggregation::bls_agg::{
 use eigensdk::services_operatorsinfo::operatorsinfo_inmemory::OperatorInfoServiceInMemory;
 use eigensdk::types::avs::{TaskIndex, TaskResponseDigest};
 use eigensdk::utils::get_provider;
-use gadget_config::StdGadgetConfiguration;
+use gadget_config::GadgetConfiguration;
 use gadget_contexts::eigenlayer::EigenlayerContext;
 use gadget_logging::{debug, error, info};
 use gadget_macros::contexts::{EigenlayerContext, KeystoreContext};
@@ -47,7 +47,7 @@ pub struct AggregatorContext {
     pub wallet: EthereumWallet,
     pub response_cache: Arc<Mutex<VecDeque<SignedTaskResponse>>>,
     #[config]
-    pub sdk_config: StdGadgetConfiguration,
+    pub sdk_config: GadgetConfiguration,
     shutdown: Arc<(Notify, Mutex<bool>)>,
 }
 
@@ -56,7 +56,7 @@ impl AggregatorContext {
         port_address: String,
         task_manager_address: Address,
         wallet: EthereumWallet,
-        sdk_config: StdGadgetConfiguration,
+        sdk_config: GadgetConfiguration,
     ) -> Result<Self, Error> {
         let mut aggregator_context = AggregatorContext {
             port_address,
@@ -91,6 +91,7 @@ impl AggregatorContext {
             info!("Starting aggregator RPC server");
 
             let server_handle = tokio::spawn(Self::start_server(Arc::clone(&aggregator)));
+
             let process_handle =
                 tokio::spawn(Self::process_cached_responses(Arc::clone(&aggregator)));
 
@@ -452,14 +453,17 @@ impl AggregatorContext {
 impl BackgroundService for AggregatorContext {
     async fn start(&self) -> Result<oneshot::Receiver<Result<(), RunnerError>>, RunnerError> {
         let handle = self.clone().start().await;
+        info!("Aggregator task started");
         let (result_tx, result_rx) = oneshot::channel();
 
         tokio::spawn(async move {
             match handle.await {
                 Ok(_) => {
+                    info!("Aggregator task finished");
                     let _ = result_tx.send(Ok(()));
                 }
                 Err(e) => {
+                    error!("Aggregator task failed: {}", e);
                     let _ = result_tx.send(Err(RunnerError::Eigenlayer(format!(
                         "Aggregator task failed: {:?}",
                         e

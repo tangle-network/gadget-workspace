@@ -11,8 +11,6 @@ pub trait EigenlayerContext {
 #[async_trait::async_trait]
 impl EigenlayerContext for GadgetConfiguration {
     async fn eigenlayer_client(&self) -> Result<EigenlayerClient, Error> {
-        Ok(EigenlayerClient {
-            config: self.clone(),
-        })
+        Ok(EigenlayerClient::new(self.clone()))
     }
 }

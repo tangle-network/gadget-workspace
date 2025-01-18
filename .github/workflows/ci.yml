@@ -114,6 +114,12 @@ jobs:
       - name: checkout code
         uses: actions/checkout@v2
 
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Verify Forge installation
+        run: forge --version
+
       - name: install rust
         uses: dtolnay/rust-toolchain@nightly
         with:

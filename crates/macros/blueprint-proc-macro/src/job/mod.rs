@@ -513,7 +513,7 @@ pub fn generate_autogen_struct(
 
         required_fields.push(quote! {
             pub contract: #instance_name,
-            pub contract_instance: std::sync::OnceLock<gadget_macros::ext::event_listeners::evm::contracts::AlloyContractInstance>,
+            pub contract_instance: std::sync::OnceLock<gadget_macros::ext::event_listeners::evm::AlloyContractInstance>,
         });
     }
 

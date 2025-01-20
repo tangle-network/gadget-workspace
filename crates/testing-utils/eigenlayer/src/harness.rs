@@ -1,5 +1,4 @@
 use crate::env::{setup_eigenlayer_test_environment, EigenlayerTestEnvironment};
-use crate::runner::EigenlayerBLSTestEnv;
 use crate::Error;
 use alloy_primitives::Address;
 use alloy_provider::RootProvider;
@@ -11,12 +10,8 @@ use gadget_config::{
     GadgetConfiguration,
 };
 use gadget_core_testing_utils::harness::{BaseTestHarness, TestHarness};
-use gadget_core_testing_utils::runner::TestEnv;
-use gadget_macros::ext::event_listeners::core::InitializableEventHandler;
-use gadget_runners::core::jobs::JobBuilder;
-use gadget_runners::core::runner::BackgroundService;
-use gadget_runners::eigenlayer::bls::EigenlayerBLSConfig;
 use gadget_utils::evm::get_provider_http;
+use tempfile::TempDir;
 use url::Url;
 
 /// Configuration for the Eigenlayer test harness
@@ -36,6 +31,7 @@ pub struct EigenlayerTestHarness {
     pub accounts: Vec<Address>,
     pub eigenlayer_contract_addresses: EigenlayerContractAddresses,
     pub pauser_registry_address: Address,
+    _temp_dir: tempfile::TempDir,
     _container: Container,
 }
 
@@ -44,7 +40,7 @@ impl TestHarness for EigenlayerTestHarness {
     type Config = EigenlayerTestConfig;
     type Error = Error;
 
-    async fn setup() -> Result<Self, Self::Error> {
+    async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
         // Start local Anvil testnet
         let (container, http_endpoint, ws_endpoint) = start_default_anvil_testnet(true).await;
 
@@ -58,15 +54,14 @@ impl TestHarness for EigenlayerTestHarness {
         } = setup_eigenlayer_test_environment(&http_endpoint, &ws_endpoint).await;
 
         // Setup temporary testing keystore
-        let temp_dir = tempfile::TempDir::new()?;
-        let temp_dir_path = temp_dir.path().to_string_lossy().into_owned();
-        inject_anvil_key(&temp_dir_path, ANVIL_PRIVATE_KEYS[0]).unwrap();
+        let test_dir_path = test_dir.path().to_string_lossy().into_owned();
+        inject_anvil_key(&test_dir, ANVIL_PRIVATE_KEYS[0]).unwrap();
 
         // Create context config
         let context_config = ContextConfig::create_eigenlayer_config(
             Url::parse(&http_endpoint)?,
             Url::parse(&ws_endpoint)?,
-            temp_dir_path,
+            test_dir_path,
             None,
             SupportedChains::LocalTestnet,
             eigenlayer_contract_addresses,
@@ -93,6 +88,7 @@ impl TestHarness for EigenlayerTestHarness {
             accounts,
             eigenlayer_contract_addresses,
             pauser_registry_address,
+            _temp_dir: test_dir,
             _container: container,
         })
     }

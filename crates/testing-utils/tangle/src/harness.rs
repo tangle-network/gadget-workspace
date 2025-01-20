@@ -17,19 +17,15 @@ use gadget_core_testing_utils::{
     runner::TestEnv,
 };
 use gadget_crypto_tangle_pair_signer::TanglePairSigner;
-use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_keystore::backends::Backend;
 use gadget_keystore::crypto::sp_core::{SpEcdsa, SpSr25519};
-use gadget_runners::core::runner::BackgroundService;
-use gadget_runners::{
-    core::jobs::JobBuilder,
-    tangle::tangle::{PriceTargets, TangleConfig},
-};
+use gadget_runners::tangle::tangle::{PriceTargets, TangleConfig};
 use sp_core::Pair;
 use tangle_subxt::tangle_testnet_runtime::api::services::{
     calls::types::{call::Job, register::Preferences},
     events::JobResultSubmitted,
 };
+use tempfile::TempDir;
 use url::Url;
 
 /// Configuration for the Tangle test harness
@@ -57,7 +53,7 @@ impl TestHarness for TangleTestHarness {
     type Config = TangleTestConfig;
     type Error = Error;
 
-    async fn setup() -> Result<Self, Self::Error> {
+    async fn setup(test_dir: TempDir) -> Result<Self, Self::Error> {
         // Start Local Tangle Node
         let node = run(NodeConfig::new(false))
             .await
@@ -66,15 +62,14 @@ impl TestHarness for TangleTestHarness {
         let ws_endpoint = Url::parse(&format!("ws://127.0.0.1:{}", node.ws_port()))?;
 
         // Setup testing directory
-        let temp_dir = tempfile::TempDir::new()?;
-        let temp_dir_path = temp_dir.path().to_string_lossy().into_owned();
-        inject_tangle_key(&temp_dir_path, "//Alice")?;
+        let test_dir_path = test_dir.path().to_string_lossy().into_owned();
+        inject_tangle_key(&test_dir_path, "//Alice")?;
 
         // Create context config
         let context_config = ContextConfig::create_tangle_config(
             http_endpoint.clone(),
             ws_endpoint.clone(),
-            temp_dir_path,
+            test_dir_path,
             None,
             SupportedChains::LocalTestnet,
             0,
@@ -118,7 +113,7 @@ impl TestHarness for TangleTestHarness {
             sr25519_signer,
             ecdsa_signer,
             alloy_key,
-            _temp_dir: temp_dir,
+            _temp_dir: test_dir,
             _node: node,
         };
 
@@ -213,15 +208,7 @@ impl TangleTestHarness {
     }
 
     /// Sets up a complete service environment with initialized event handlers
-    pub async fn setup_service<E, B>(
-        &self,
-        event_handlers: Vec<E>,
-        background_services: Vec<B>,
-    ) -> Result<(u64, u64), Error>
-    where
-        E: InitializableEventHandler + Send + 'static,
-        B: BackgroundService,
-    {
+    pub async fn setup_services(&self) -> Result<(TangleTestEnv, u64), Error> {
         // Deploy blueprint
         let blueprint_id = self.deploy_blueprint().await?;
 
@@ -237,21 +224,9 @@ impl TangleTestHarness {
         .map_err(|e| Error::Setup(e.to_string()))?;
 
         // Create and spawn test environment
-        let mut test_env = TangleTestEnv::new(
-            TangleConfig::default(),
-            self.env().clone(),
-            event_handlers.into_iter().map(JobBuilder::new).collect(),
-            background_services,
-        )?;
+        let test_env = TangleTestEnv::new(TangleConfig::default(), self.env().clone())?;
 
-        tokio::spawn(async move {
-            test_env.run_runner().await.unwrap();
-        });
-
-        // Wait for environment to initialize
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
-        Ok((blueprint_id, service_id))
+        Ok((test_env, service_id))
     }
 
     /// Executes a job and verifies its output matches the expected result

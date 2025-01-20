@@ -7265,8 +7265,9 @@ dependencies = [
  "color-eyre",
  "gadget-logging",
  "gadget-std",
- "gadget-tangle-testing-utils",
+ "gadget-testing-utils",
  "tangle-subxt",
+ "tempfile",
  "tokio",
  "tracing",
 ]

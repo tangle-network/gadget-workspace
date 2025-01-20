@@ -14,7 +14,6 @@ use testcontainers::{
     ImageExt,
 };
 use tokio::io::AsyncBufReadExt;
-use futures::StreamExt;
 
 pub type ContainerInner = ContainerAsync<GenericImage>;
 pub struct Container {
@@ -119,7 +118,7 @@ pub async fn start_anvil_container(
 
 /// Mine Anvil blocks.
 pub async fn mine_anvil_blocks(container: &ContainerInner, n: u32) {
-    let mut output = container
+    let _output = container
         .exec(ExecCommand::new([
             "cast",
             "rpc",

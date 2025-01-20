@@ -1,6 +1,7 @@
 use crate::{MyContext, XsquareEventHandler};
 use color_eyre::Result;
 use gadget_testing_utils::harness::TestHarness;
+use gadget_testing_utils::runner::TestEnv;
 use gadget_testing_utils::tangle::{InputValue, OutputValue, TangleTestHarness};
 
 #[tokio::test]
@@ -8,7 +9,8 @@ async fn test_incredible_squaring() -> Result<()> {
     gadget_logging::setup_log();
 
     // Initialize test harness (node, keys, deployment)
-    let harness = TangleTestHarness::setup().await?;
+    let temp_dir = tempfile::TempDir::new()?;
+    let harness = TangleTestHarness::setup(temp_dir).await?;
     let env = harness.env().clone();
 
     // Create blueprint-specific context
@@ -23,7 +25,12 @@ async fn test_incredible_squaring() -> Result<()> {
         .unwrap();
 
     // Setup service
-    let (_blueprint_id, service_id) = harness.setup_service(vec![handler], vec![]).await?;
+    let (mut test_env, service_id) = harness.setup_services().await?;
+    test_env.add_job(handler);
+
+    tokio::spawn(async move {
+        test_env.run_runner().await.unwrap();
+    });
 
     // Execute job and verify result
     let results = harness

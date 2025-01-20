@@ -2,7 +2,6 @@ use gadget_config::GadgetConfiguration;
 use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_runners::core::config::BlueprintConfig;
 use gadget_runners::core::error::RunnerError as Error;
-use gadget_runners::core::jobs::JobBuilder;
 use gadget_runners::core::runner::{BackgroundService, BlueprintRunner};
 
 pub struct TestRunner {

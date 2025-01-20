@@ -3,7 +3,6 @@ use gadget_config::GadgetConfiguration;
 use gadget_core_testing_utils::runner::{TestEnv, TestRunner};
 use gadget_event_listeners::core::InitializableEventHandler;
 use gadget_runners::core::error::RunnerError as Error;
-use gadget_runners::core::jobs::JobBuilder;
 use gadget_runners::core::runner::BackgroundService;
 use gadget_runners::tangle::tangle::TangleConfig;
 
@@ -16,25 +15,28 @@ pub struct TangleTestEnv {
 impl TestEnv for TangleTestEnv {
     type Config = TangleConfig;
 
-    fn new<J, B, T>(
-        config: Self::Config,
-        env: GadgetConfiguration,
-        jobs: Vec<J>,
-        services: Vec<B>,
-    ) -> Result<Self, Error>
-    where
-        J: Into<JobBuilder<T>> + 'static,
-        B: BackgroundService,
-        T: InitializableEventHandler + Send + 'static,
-    {
-        let runner =
-            TestRunner::new::<J, B, T, Self::Config>(config.clone(), env.clone(), jobs, services);
+    fn new(config: Self::Config, env: GadgetConfiguration) -> Result<Self, Error> {
+        let runner = TestRunner::new::<Self::Config>(config.clone(), env.clone());
 
         Ok(Self {
             runner,
             config,
             gadget_config: env,
         })
+    }
+
+    fn add_job<J>(&mut self, job: J)
+    where
+        J: InitializableEventHandler + Send + 'static,
+    {
+        self.runner.add_job(job);
+    }
+
+    fn add_background_service<B>(&mut self, service: B)
+    where
+        B: BackgroundService + Send + 'static,
+    {
+        self.runner.add_background_service(service);
     }
 
     fn get_gadget_config(self) -> GadgetConfiguration {

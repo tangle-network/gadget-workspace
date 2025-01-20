@@ -1,4 +1,5 @@
 use gadget_config::GadgetConfiguration;
+use tempfile::TempDir;
 
 /// Generic test harness trait that defines common functionality for all test harnesses
 #[async_trait::async_trait]
@@ -9,7 +10,7 @@ pub trait TestHarness {
     type Error;
 
     /// Creates a new test harness with the given configuration
-    async fn setup() -> Result<Self, Self::Error>
+    async fn setup(test_dir: TempDir) -> Result<Self, Self::Error>
     where
         Self: Sized;
 

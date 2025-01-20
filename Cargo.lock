@@ -6379,6 +6379,7 @@ dependencies = [
  "alloy-rpc-types",
  "alloy-rpc-types-eth 0.5.4",
  "alloy-transport",
+ "futures",
  "gadget-keystore",
  "gadget-logging",
  "gadget-std",

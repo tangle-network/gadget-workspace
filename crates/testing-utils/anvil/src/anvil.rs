@@ -14,6 +14,7 @@ use testcontainers::{
     ImageExt,
 };
 use tokio::io::AsyncBufReadExt;
+use futures::StreamExt;
 
 pub type ContainerInner = ContainerAsync<GenericImage>;
 pub struct Container {
@@ -97,6 +98,8 @@ pub async fn start_anvil_container(
         });
     }
 
+    mine_anvil_blocks(&container, 200).await;
+
     let port = container
         .ports()
         .await
@@ -125,10 +128,6 @@ pub async fn mine_anvil_blocks(container: &ContainerInner, n: u32) {
         ]))
         .await
         .expect("Failed to mine anvil blocks");
-
-    // blocking operation until the mining execution finishes
-    output.stdout_to_vec().await.unwrap();
-    assert_eq!(output.exit_code().await.unwrap().unwrap(), 0);
 }
 
 use testcontainers::{ContainerAsync, GenericImage};

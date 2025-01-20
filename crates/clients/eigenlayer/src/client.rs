@@ -12,7 +12,7 @@ use num_bigint::BigInt;
 /// Client that provides access to EigenLayer utility functions through the use of the [`GadgetConfiguration`].
 #[derive(Clone)]
 pub struct EigenlayerClient {
-    config: GadgetConfiguration,
+    pub config: GadgetConfiguration,
 }
 
 impl EigenlayerClient {

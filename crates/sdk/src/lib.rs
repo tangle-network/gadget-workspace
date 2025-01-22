@@ -54,9 +54,6 @@ mod macros_feat {
 #[cfg(feature = "macros")]
 pub use macros_feat::*;
 
-#[cfg(feature = "utils")]
-pub use gadget_utils as utils;
-
 /// Core cryptographic primitives and utilities
 pub use gadget_crypto as crypto;
 
@@ -73,8 +70,8 @@ pub use gadget_utils as utils;
 pub use gadget_config as config;
 pub use gadget_keystore as keystore;
 pub use gadget_std as std;
-pub use tokio;
 pub use serde;
+pub use tokio;
 
 #[cfg(feature = "local-store")]
 pub use gadget_stores as stores;

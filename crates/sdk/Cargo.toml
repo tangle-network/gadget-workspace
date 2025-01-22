@@ -26,6 +26,7 @@ tangle-subxt = { workspace = true, optional = true }
 
 # EigenLayer and EVM
 alloy = { workspace = true, optional = true }
+alloy-json-abi = { workspace = true, optional = true, features = ["serde_json"] }
 eigensdk = { workspace = true, optional = true, features = ["full"] }
 
 # Serialization
@@ -52,9 +53,6 @@ tempfile = { workspace = true, optional = true }
 blueprint-metadata = { workspace = true, optional = true }
 blueprint-build-utils = { workspace = true, optional = true }
 
-# Optional Utility
-gadget-utils = { workspace = true, optional = true }
-
 [features]
 default = ["std"]
 std = [
@@ -80,8 +78,6 @@ macros = [
 	"dep:gadget-macros"
 ]
 
-utils = ["dep:gadget-utils"]
-
 build = ["blueprint-metadata", "blueprint-build-utils"]
 
 tangle = [
@@ -96,6 +92,7 @@ evm = [
 	"gadget-utils/evm",
 	"gadget-testing-utils?/anvil",
 	"alloy",
+	"alloy-json-abi",
 	"gadget-macros?/evm",
 ]
 
@@ -104,6 +101,7 @@ eigenlayer = [
 	"gadget-testing-utils?/eigenlayer",
 	"gadget-utils/eigenlayer",
 	"alloy",
+	"alloy-json-abi",
 	"eigensdk",
 ]
 
